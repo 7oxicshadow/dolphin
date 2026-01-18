@@ -1173,7 +1173,7 @@ void MainWindow::StartGame(std::unique_ptr<BootParameters>&& parameters)
         Config::Get(Config::MAIN_SERIAL_PORT_1) == ExpansionInterface::EXIDeviceType::Baseboard;
     const bool triforce_hardware_port_1 = Config::Get(Config::GetInfoForSIDevice(0)) ==
                                           SerialInterface::SIDevices::SIDEVICE_AM_BASEBOARD;
-
+#if(0)
     if (volume_type == DiscIO::Platform::Triforce)
     {
       if (!triforce_hardware_sp1 || !triforce_hardware_port_1)
@@ -1187,6 +1187,7 @@ void MainWindow::StartGame(std::unique_ptr<BootParameters>&& parameters)
       }
     }
     else
+#endif
     {
       // Some Triforce tools don't include a boot.id file, but they can still be launched.
       if (triforce_hardware_sp1)
