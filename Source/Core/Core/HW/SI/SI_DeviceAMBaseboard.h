@@ -239,6 +239,7 @@ private:
     ProgramVersion = 0x76,
   };
 
+<<<<<<< HEAD
   union ICCommand
   {
     u8 data[81 + 4 + 4 + 4];
@@ -307,6 +308,79 @@ private:
   bool m_fzcc_sensor;
   bool m_fzcc_emergency;
   bool m_fzcc_service;
+=======
+  // NOTE: Used to be an union with `u8 data[81 + 4 + 4 + 4]`
+  // TODO: Should the struct be packed?
+  struct ICCommand
+  {
+    u32 pktcmd : 8;
+    u32 pktlen : 8;
+    u32 fixed : 8;
+    u32 command : 8;
+    u32 flag : 8;
+    u32 length : 8;
+    u32 status : 16;
+
+    u8 extdata[81] = {};
+    u32 extlen;
+  };
+
+  u8 m_last[2][0x80] = {};
+  u32 m_lastptr[2] = {};
+
+  std::array<u16, 2> m_coin{};
+  std::array<u32, 2> m_coin_pressed{};
+
+  u8 m_ic_card_data[2048] = {};
+
+  // Setup IC-card
+  u16 m_ic_card_state = 0x20;
+  u16 m_ic_card_status = ICCARDStatus::Okay;
+  u16 m_ic_card_session = 0x23;
+
+  u8 m_ic_write_buffer[512] = {};
+  u32 m_ic_write_offset = 0;
+  u32 m_ic_write_size = 0;
+
+  u8 m_card_memory[0xD0] = {};
+  u8 m_card_read_packet[0xDB] = {};
+  u8 m_card_buffer[0x100] = {};
+
+  // Setup CARD
+  u32 m_card_memory_size = 0;
+  bool m_card_is_inserted = false;
+
+  u32 m_card_command = 0;
+  u32 m_card_clean = 0;
+  u32 m_card_write_length = 0;
+  u32 m_card_wrote = 0;
+  u32 m_card_read_length = 0;
+  u32 m_card_read = 0;
+  u32 m_card_bit = 0;
+  bool m_card_shutter = true;  // Open
+  u32 m_card_state_call_count = 0;
+  u8 m_card_offset = 0;
+
+  // Serial
+  u32 m_wheel_init = 0;
+
+  u32 m_motor_init = 0;
+  u8 m_motor_reply[64] = {};
+  s16 m_motor_force_y = 0;
+
+  // F-Zero AX (DX)
+  bool m_fzdx_seatbelt = true;
+  bool m_fzdx_motion_stop = false;
+  bool m_fzdx_sensor_right = false;
+  bool m_fzdx_sensor_left = false;
+  u8 m_rx_reply = 0xF0;
+
+  // F-Zero AX (CyCraft)
+  bool m_fzcc_seatbelt = true;
+  bool m_fzcc_sensor = false;
+  bool m_fzcc_emergency = false;
+  bool m_fzcc_service = false;
+>>>>>>> crediar/master
 
   void ICCardSendReply(ICCommand* iccommand, u8* buffer, u32* length);
 };

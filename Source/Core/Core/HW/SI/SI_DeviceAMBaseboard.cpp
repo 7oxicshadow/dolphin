@@ -4,6 +4,10 @@
 #include "Core/HW/SI/SI_DeviceAMBaseboard.h"
 
 #include <algorithm>
+<<<<<<< HEAD
+=======
+#include <numeric>
+>>>>>>> crediar/master
 #include <string>
 
 #include <fmt/format.h>
@@ -41,7 +45,10 @@
 
 namespace SerialInterface
 {
+<<<<<<< HEAD
 
+=======
+>>>>>>> crediar/master
 void JVSIOMessage::Start(int node)
 {
   m_last_start = m_pointer;
@@ -89,7 +96,11 @@ void JVSIOMessage::AddData(const u8* dst, size_t len, int sync = 0)
 
 void JVSIOMessage::AddData(const void* data, size_t len)
 {
+<<<<<<< HEAD
   AddData((const u8*)data, len);
+=======
+  AddData(static_cast<const u8*>(data), len);
+>>>>>>> crediar/master
 }
 
 void JVSIOMessage::AddData(const char* data)
@@ -117,6 +128,7 @@ void JVSIOMessage::End()
   }
 }
 
+<<<<<<< HEAD
 static u8 CheckSumXOR(u8* data, u32 length)
 {
   u8 check = 0;
@@ -132,6 +144,16 @@ static u8 CheckSumXOR(u8* data, u32 length)
 static const char s_cdr_program_version[] = {"           Version 1.22,2003/09/19,171-8213B"};
 static const char s_cdr_boot_version[] = {"           Version 1.04,2003/06/17,171-8213B"};
 static const u8 s_cdr_card_data[] = {
+=======
+static constexpr u8 CheckSumXOR(const u8* data, u32 length)
+{
+  return std::accumulate(data, data + length, u8{}, std::bit_xor());
+}
+
+static constexpr char s_cdr_program_version[] = {"           Version 1.22,2003/09/19,171-8213B"};
+static constexpr char s_cdr_boot_version[] = {"           Version 1.04,2003/06/17,171-8213B"};
+static constexpr u8 s_cdr_card_data[] = {
+>>>>>>> crediar/master
     0x00, 0x6E, 0x00, 0x00, 0x01, 0x00, 0x00, 0x06, 0x00, 0x00, 0x07, 0x00, 0x00, 0x0B,
     0x00, 0x00, 0x0E, 0x00, 0x00, 0x10, 0x00, 0x00, 0x17, 0x00, 0x00, 0x19, 0x00, 0x00,
     0x1A, 0x00, 0x00, 0x1B, 0x00, 0x00, 0x1D, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x20, 0x00,
@@ -139,16 +161,25 @@ static const u8 s_cdr_card_data[] = {
     0x00, 0x00, 0x2C, 0x00, 0x00, 0x2F, 0x00, 0x00, 0x34, 0x00, 0x00, 0x35, 0x00, 0x00,
     0x37, 0x00, 0x00, 0x38, 0x00, 0x00, 0x39, 0x00, 0x00, 0x3D, 0x00};
 
+<<<<<<< HEAD
 const static u8 s_region_flags[] = "\x00\x00\x30\x00"
                                    //   "\x01\xfe\x00\x00"  // JAPAN
                                    "\x02\xfd\x00\x00"  // USA
                                    //"\x03\xfc\x00\x00"  // export
                                    "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff";
+=======
+const constexpr u8 s_region_flags[] = "\x00\x00\x30\x00"
+                                      //   "\x01\xfe\x00\x00"  // JAPAN
+                                      "\x02\xfd\x00\x00"  // USA
+                                      //"\x03\xfc\x00\x00"  // export
+                                      "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff";
+>>>>>>> crediar/master
 // AM-Baseboard device on SI
 CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices device,
                                              int device_number)
     : ISIDevice(system, device, device_number)
 {
+<<<<<<< HEAD
   std::ranges::fill(m_coin, 0);
 
   // Setup IC-card
@@ -162,6 +193,8 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
   memset(m_ic_write_buffer, 0, sizeof(m_ic_write_buffer));
   memset(m_ic_card_data, 0, sizeof(m_ic_card_data));
 
+=======
+>>>>>>> crediar/master
   // Card ID
   m_ic_card_data[0x20] = 0x95;
   m_ic_card_data[0x21] = 0x71;
@@ -180,6 +213,7 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
   // Use count
   m_ic_card_data[0x28] = 0xFF;
   m_ic_card_data[0x29] = 0xFF;
+<<<<<<< HEAD
 
   // Setup CARD
   m_card_memory_size = 0;
@@ -218,6 +252,8 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
   m_fzcc_service = false;
 
   memset(m_motor_reply, 0, sizeof(m_motor_reply));
+=======
+>>>>>>> crediar/master
 }
 
 constexpr u32 SI_XFER_LENGTH_MASK = 0x7f;
@@ -232,11 +268,20 @@ void CSIDevice_AMBaseboard::ICCardSendReply(ICCommand* iccommand, u8* buffer, u3
 {
   iccommand->status = Common::swap16(iccommand->status);
 
+<<<<<<< HEAD
   const u8 crc = CheckSumXOR(iccommand->data + 2, iccommand->pktlen - 1);
 
   for (u32 i = 0; i < iccommand->pktlen + 1; ++i)
   {
     buffer[(*length)++] = iccommand->data[i];
+=======
+  const auto iccommand_data = reinterpret_cast<const u8*>(iccommand);
+  const u8 crc = CheckSumXOR(iccommand_data + 2, iccommand->pktlen - 1);
+
+  for (u32 i = 0; i < iccommand->pktlen + 1; ++i)
+  {
+    buffer[(*length)++] = iccommand_data[i];
+>>>>>>> crediar/master
   }
 
   buffer[(*length)++] = crc;
@@ -292,7 +337,47 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
       data_out[data_offset++] = 1;
 
       u8* data_in = buffer + 2;
+<<<<<<< HEAD
       const u8* data_in_end = buffer + buffer[buffer_position] + 2;
+=======
+      if (buffer_position >= buffer_length)
+      {
+        ERROR_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: buffer overflow (position={}, length={})",
+                      buffer_position, buffer_length);
+        buffer_position = buffer_length;
+        break;
+      }
+
+      const u32 requested_size = buffer[buffer_position] + 2;
+      if (requested_size > buffer_length)
+      {
+        ERROR_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: requested size ({}) bigger than buffer's ({})",
+                      requested_size, buffer_length);
+        buffer_position = buffer_length;
+        break;
+      }
+      u8* const data_in_end = buffer + requested_size;
+
+      // Helper to check that iterating over data n times is safe,
+      // i.e. *data++ at most lead to data.end()
+      auto validate_data_in_out = [&](u32 n_in, u32 n_out, std::string_view command) -> bool {
+        if (data_in + n_in > data_in_end)
+          ERROR_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: data_in overflow in {}", command);
+        else if (u64{data_offset} + n_out > data_out.size())
+          ERROR_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: data_out overflow in {}", command);
+        else
+          return true;
+        ERROR_LOG_FMT(SERIALINTERFACE_AMBB,
+                      "Overflow details:\n"
+                      " - data_in(begin={}, current={}, end={}, n_in={})\n"
+                      " - data_out(offset={}, size={}, n_out={})\n"
+                      " - buffer(position={}, length={})",
+                      fmt::ptr(buffer + 2), fmt::ptr(data_in), fmt::ptr(data_in_end), n_in,
+                      data_offset, data_out.size(), n_out, buffer_position, buffer_length);
+        data_in = data_in_end;
+        return false;
+      };
+>>>>>>> crediar/master
 
       while (data_in < data_in_end)
       {
@@ -301,6 +386,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         {
         case GCAMCommand::StatusSwitches:
         {
+<<<<<<< HEAD
+=======
+          if (!validate_data_in_out(1, 4, "StatusSwitches"))
+            break;
+
+>>>>>>> crediar/master
           const u8 status = *data_in++;
           DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x10, {:02x} (READ STATUS&SWITCHES)",
                         status);
@@ -338,8 +429,17 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         }
         case GCAMCommand::SerialNumber:
         {
+<<<<<<< HEAD
           NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x11, {:02x} (READ SERIAL NR)",
                          *data_in++);
+=======
+          if (!validate_data_in_out(1, 18, "SerialNumber"))
+            break;
+
+          NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x11, {:02x} (READ SERIAL NR)",
+                         *data_in);
+          data_in++;
+>>>>>>> crediar/master
 
           data_out[data_offset++] = gcam_command;
           data_out[data_offset++] = 16;
@@ -349,6 +449,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           break;
         }
         case GCAMCommand::Unknown_12:
+<<<<<<< HEAD
+=======
+          if (!validate_data_in_out(2, 2, "Unknown_12"))
+            break;
+
+>>>>>>> crediar/master
           NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x12, {:02x} {:02x}", data_in[0],
                          data_in[1]);
 
@@ -358,6 +464,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           data_in += 2;
           break;
         case GCAMCommand::Unknown_14:
+<<<<<<< HEAD
+=======
+          if (!validate_data_in_out(2, 2, "Unknown_14"))
+            break;
+
+>>>>>>> crediar/master
           NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x14, {:02x} {:02x}", data_in[0],
                          data_in[1]);
 
@@ -367,8 +479,17 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           data_in += 2;
           break;
         case GCAMCommand::FirmVersion:
+<<<<<<< HEAD
           NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x15, {:02x} (READ FIRM VERSION)",
                          *data_in++);
+=======
+          if (!validate_data_in_out(1, 4, "FirmVersion"))
+            break;
+
+          NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x15, {:02x} (READ FIRM VERSION)",
+                         *data_in);
+          data_in++;
+>>>>>>> crediar/master
 
           data_out[data_offset++] = gcam_command;
           data_out[data_offset++] = 0x02;
@@ -377,8 +498,17 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           data_out[data_offset++] = 0x26;
           break;
         case GCAMCommand::FPGAVersion:
+<<<<<<< HEAD
           NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x16, {:02x} (READ FPGA VERSION)",
                          *data_in++);
+=======
+          if (!validate_data_in_out(1, 4, "FPGAVersion"))
+            break;
+
+          NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x16, {:02x} (READ FPGA VERSION)",
+                         *data_in);
+          data_in++;
+>>>>>>> crediar/master
 
           data_out[data_offset++] = gcam_command;
           data_out[data_offset++] = 0x02;
@@ -388,6 +518,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           break;
         case GCAMCommand::RegionSettings:
         {
+<<<<<<< HEAD
+=======
+          if (!validate_data_in_out(5, 0x16, "RegionSettings"))
+            break;
+
+>>>>>>> crediar/master
           // Used by SegaBoot for region checks (dev mode skips this check)
           // In some games this also controls the displayed language
           NOTICE_LOG_FMT(SERIALINTERFACE_AMBB,
@@ -407,6 +543,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         // Note: Always sends three bytes even though size is set to two
         case GCAMCommand::Unknown_21:
         {
+<<<<<<< HEAD
+=======
+          if (!validate_data_in_out(4, 0, "Unknown_21"))
+            break;
+
+>>>>>>> crediar/master
           DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x21, {:02x}, {:02x}, {:02x}, {:02x}",
                         data_in[0], data_in[1], data_in[2], data_in[3]);
           data_in += 4;
@@ -416,14 +558,34 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         // Note: Always sends six bytes
         case GCAMCommand::Unknown_22:
         {
+<<<<<<< HEAD
+=======
+          if (!validate_data_in_out(7, 0, "Unknown_22"))
+            break;
+
+>>>>>>> crediar/master
           DEBUG_LOG_FMT(
               SERIALINTERFACE_AMBB,
               "GC-AM: Command 0x22, {:02x}, {:02x}, {:02x}, {:02x}, {:02x}, {:02x}, {:02x}",
               data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5], data_in[6]);
+<<<<<<< HEAD
           data_in += data_in[0] + 1;
         }
         break;
         case GCAMCommand::Unknown_23:
+=======
+
+          const u32 in_size = data_in[0] + 1;
+          if (!validate_data_in_out(in_size, 0, "Unknown_22"))
+            break;
+          data_in += in_size;
+        }
+        break;
+        case GCAMCommand::Unknown_23:
+          if (!validate_data_in_out(2, 2, "Unknown_23"))
+            break;
+
+>>>>>>> crediar/master
           DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x23, {:02x} {:02x}", data_in[0],
                         data_in[1]);
 
@@ -433,6 +595,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           data_in += 2;
           break;
         case GCAMCommand::Unknown_24:
+<<<<<<< HEAD
+=======
+          if (!validate_data_in_out(2, 2, "Unknown_24"))
+            break;
+
+>>>>>>> crediar/master
           DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x24, {:02x} {:02x}", data_in[0],
                         data_in[1]);
 
@@ -443,6 +611,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           break;
         case GCAMCommand::SerialA:
         {
+<<<<<<< HEAD
           u32 length = *data_in++;
           if (length)
           {
@@ -452,11 +621,30 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                          length, data_in[0], data_in[1], data_in[2], data_in[3], data_in[4],
                          data_in[5], data_in[6], data_in[7], data_in[8], data_in[9], data_in[10],
                          data_in[11], data_in[12]);
+=======
+          if (!validate_data_in_out(1, 0, "SerialA"))
+            break;
+
+          const u32 length = *data_in++;
+          if (length)
+          {
+            if (!validate_data_in_out(length, 0, "SerialA"))
+              break;
+
+            INFO_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x31, length=0x{:02x}, hexdump:\n{}",
+                         length, HexDump(data_in, length));
+>>>>>>> crediar/master
 
             // Serial - Wheel
             if (AMMediaboard::GetGameType() == MarioKartGP ||
                 AMMediaboard::GetGameType() == MarioKartGP2)
             {
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(10, 2, "SerialA (Wheel)"))
+                break;
+
+>>>>>>> crediar/master
               INFO_LOG_FMT(SERIALINTERFACE_AMBB,
                            "GC-AM: Command 0x31, (WHEEL) {:02x}{:02x} {:02x}{:02x} {:02x} {:02x} "
                            "{:02x} {:02x} {:02x} {:02x}",
@@ -469,12 +657,22 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               switch (m_wheel_init)
               {
               case 0:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 3, "SerialA (Wheel)"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 'E';  // Error
                 data_out[data_offset++] = '0';
                 data_out[data_offset++] = '0';
                 m_wheel_init++;
                 break;
               case 1:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 3, "SerialA (Wheel)"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 'C';  // Power Off
                 data_out[data_offset++] = '0';
                 data_out[data_offset++] = '6';
@@ -485,6 +683,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 }
                 break;
               case 2:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 3, "SerialA (Wheel)"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 'C';  // Power On
                 data_out[data_offset++] = '0';
                 data_out[data_offset++] = '1';
@@ -496,7 +699,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               // u16 CenteringForce= ptr(6);
               // u16 FrictionForce = ptr(8);
               // u16 Roll          = ptr(10);
+<<<<<<< HEAD
 
+=======
+              if (!validate_data_in_out(length, 0, "SerialA (Wheel)"))
+                break;
+>>>>>>> crediar/master
               data_in += length;
               break;
             }
@@ -504,10 +712,20 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             // Serial - Unknown
             if (AMMediaboard::GetGameType() == GekitouProYakyuu)
             {
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(sizeof(u32), 0, "SerialA (Unknown)"))
+                break;
+>>>>>>> crediar/master
               const u32 serial_command = Common::BitCastPtr<u32>(data_in);
 
               if (serial_command == 0x00001000)
               {
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 5, "SerialA (Unknown)"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = gcam_command;
                 data_out[data_offset++] = 0x03;
                 data_out[data_offset++] = 1;
@@ -515,6 +733,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 data_out[data_offset++] = 3;
               }
 
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(length, 0, "SerialA (Unknown)"))
+                break;
+>>>>>>> crediar/master
               data_in += length;
               break;
             }
@@ -524,6 +747,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 AMMediaboard::GetGameType() == VirtuaStriker4_2006 ||
                 AMMediaboard::GetGameType() == KeyOfAvalon)
             {
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(2, 0, "SerialA (IC-CARD)"))
+                break;
+>>>>>>> crediar/master
               u32 serial_command = data_in[1];
 
               ICCommand icco;
@@ -543,6 +771,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               {
                 const u32 size = data_in[1];
 
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(size + 2, 0, "SerialA (IC-CARD)"))
+                  break;
+>>>>>>> crediar/master
                 DEBUG_LOG_FMT(SERIALINTERFACE_CARD, "Command: {}", HexDump(data_in, size + 2));
 
                 INFO_LOG_FMT(
@@ -550,6 +783,19 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                     "GC-AM: Command 25 (IC-CARD) Write Pages: Off:{:x} Size:{:x} PSize:{:x}",
                     m_ic_write_offset, m_ic_write_size, size);
 
+<<<<<<< HEAD
+=======
+                if (u64{m_ic_write_offset} + size > sizeof(m_ic_write_buffer))
+                {
+                  ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                                "GC-AM: Command 25 (IC-CARD) m_ic_write_buffer overflow:\n"
+                                " - m_ic_write_buffer(offset={}, size={})\n"
+                                " - size={}\n",
+                                m_ic_write_offset, sizeof(m_ic_write_buffer), size);
+                  data_in = data_in_end;
+                  break;
+                }
+>>>>>>> crediar/master
                 memcpy(m_ic_write_buffer + m_ic_write_offset, data_in + 2, size);
 
                 m_ic_write_offset += size;
@@ -561,6 +807,22 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                   const u16 page = m_ic_write_buffer[5];
                   const u16 count = m_ic_write_buffer[7];
 
+<<<<<<< HEAD
+=======
+                  if ((page * 8 + count * 8) > sizeof(m_ic_card_data) ||
+                      (10 + count * 8) > sizeof(m_ic_write_buffer))
+                  {
+                    ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                                  "GC-AM: Command 25 (IC-CARD) Write Pages overflow:\n"
+                                  " - m_ic_card_data(offset={}, size={})\n"
+                                  " - m_ic_write_buffer(offset={}, size={})\n"
+                                  " - size={}, page={}, count={}\n",
+                                  page * 8, sizeof(m_ic_card_data), 10, sizeof(m_ic_write_buffer),
+                                  count * 8, page, count);
+                    data_in = data_in_end;
+                    break;
+                  }
+>>>>>>> crediar/master
                   memcpy(m_ic_card_data + page * 8, m_ic_write_buffer + 10, count * 8);
 
                   INFO_LOG_FMT(SERIALINTERFACE_CARD,
@@ -569,8 +831,17 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
                   icco.command = WritePages;
 
+<<<<<<< HEAD
                   ICCardSendReply(&icco, data_out.data(), &data_offset);
                 }
+=======
+                  if (!validate_data_in_out(0, icco.pktlen + 2, "SerialA (IC-CARD)"))
+                    break;
+                  ICCardSendReply(&icco, data_out.data(), &data_offset);
+                }
+                if (!validate_data_in_out(length, 0, "SerialA (IC-CARD)"))
+                  break;
+>>>>>>> crediar/master
                 data_in += length;
                 break;
               }
@@ -633,6 +904,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               case ICCARDCommand::ReadPage:
               case ICCARDCommand::ReadUseCount:
               {
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(8, 0, "SerialA (IC-CARD)"))
+                  break;
+>>>>>>> crediar/master
                 const u16 page = Common::swap16(data_in + 6) & 0xFF;  // 255 is max page
 
                 icco.extlen = 8;
@@ -647,6 +923,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               }
               case ICCARDCommand::WritePage:
               {
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(10, 0, "SerialA (IC-CARD)"))
+                  break;
+>>>>>>> crediar/master
                 const u16 page = Common::swap16(data_in + 8) & 0xFF;  // 255 is max page
 
                 // Write only one page
@@ -656,6 +937,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 }
                 else
                 {
+<<<<<<< HEAD
+=======
+                  if (!validate_data_in_out(18, 0, "SerialA (IC-CARD)"))
+                    break;
+>>>>>>> crediar/master
                   memcpy(m_ic_card_data + page * 8, data_in + 10, 8);
                 }
 
@@ -665,6 +951,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               }
               case ICCARDCommand::DecreaseUseCount:
               {
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(8, 0, "SerialA (IC-CARD)"))
+                  break;
+>>>>>>> crediar/master
                 const u16 page = Common::swap16(data_in + 6) & 0xFF;  // 255 is max page
 
                 icco.extlen = 2;
@@ -684,6 +975,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               }
               case ICCARDCommand::ReadPages:
               {
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(10, 0, "SerialA (IC-CARD)"))
+                  break;
+>>>>>>> crediar/master
                 const u16 page = Common::swap16(data_in + 6) & 0xFF;  // 255 is max page
                 const u16 count = Common::swap16(data_in + 8);
 
@@ -691,7 +987,21 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 u32 cnt = count * 8;
 
                 // Limit read size to not overwrite the reply buffer
+<<<<<<< HEAD
                 if (cnt > (u32)0x50 - data_offset)
+=======
+                const std::size_t reply_buffer_size = sizeof(icco.extdata) - 1;
+                if (data_offset > reply_buffer_size)
+                {
+                  ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                                "GC-AM: Command 31 (IC-CARD) Read Pages overflow:"
+                                " offset={} > buffer_size={}",
+                                data_offset, reply_buffer_size);
+                  data_in = data_in_end;
+                  break;
+                }
+                if (cnt > reply_buffer_size - data_offset)
+>>>>>>> crediar/master
                 {
                   cnt = 5 * 8;
                 }
@@ -700,6 +1010,18 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 icco.length += icco.extlen;
                 icco.pktlen += icco.extlen;
 
+<<<<<<< HEAD
+=======
+                if (offs + cnt > sizeof(icco.extdata))
+                {
+                  ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                                "GC-AM: Command 31 (IC-CARD) Read Pages overflow:"
+                                " offset={} + count={} > buffer_size={}",
+                                offs, cnt, sizeof(icco.extdata));
+                  data_in = data_in_end;
+                  break;
+                }
+>>>>>>> crediar/master
                 memcpy(icco.extdata, m_ic_card_data + offs, cnt);
 
                 INFO_LOG_FMT(SERIALINTERFACE_CARD,
@@ -708,6 +1030,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               }
               case ICCARDCommand::WritePages:
               {
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(10, 0, "SerialA (IC-CARD)"))
+                  break;
+>>>>>>> crediar/master
                 const u16 pksize = length;
                 const u16 size = Common::swap16(data_in + 2);
                 const u16 page = Common::swap16(data_in + 6) & 0xFF;  // 255 is max page
@@ -731,6 +1058,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                     }
                     else
                     {
+<<<<<<< HEAD
+=======
+                      if (!validate_data_in_out(13 + count * 8, 0, "SerialA (IC-CARD)"))
+                        break;
+>>>>>>> crediar/master
                       memcpy(m_ic_card_data + page * 8, data_in + 13, count * 8);
                     }
                   }
@@ -742,6 +1074,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 // VirtuaStriker 4 splits the writes over multiple packets
                 else
                 {
+<<<<<<< HEAD
+=======
+                  if (!validate_data_in_out(2 + pksize, 0, "SerialA (IC-CARD)"))
+                    break;
+>>>>>>> crediar/master
                   memcpy(m_ic_write_buffer, data_in + 2, pksize);
                   m_ic_write_offset += pksize;
                   m_ic_write_size = size;
@@ -750,6 +1087,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               }
               default:
                 // Handle Deck Reader commands
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(1, 0, "SerialA (DECK READER)"))
+                  break;
+>>>>>>> crediar/master
                 serial_command = data_in[0];
                 icco.command = serial_command;
                 icco.flag = 0;
@@ -859,6 +1201,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
                   break;
                 default:
+<<<<<<< HEAD
+=======
+                  if (!validate_data_in_out(14, 0, "SerialA (DECK READER)"))
+                    break;
+>>>>>>> crediar/master
                   WARN_LOG_FMT(SERIALINTERFACE_CARD,
                                "GC-AM: Command 0x31 (IC-Card) {:02x} {:02x} {:02x} {:02x} {:02x} "
                                "{:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
@@ -870,8 +1217,17 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 break;
               }
 
+<<<<<<< HEAD
               ICCardSendReply(&icco, data_out.data(), &data_offset);
 
+=======
+              if (!validate_data_in_out(0, icco.pktlen + 2, "SerialA (IC-CARD)"))
+                break;
+              ICCardSendReply(&icco, data_out.data(), &data_offset);
+
+              if (!validate_data_in_out(2, 0, "SerialA (IC-CARD)"))
+                break;
+>>>>>>> crediar/master
               data_in += length;
               break;
             }
@@ -882,6 +1238,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           {
             // All commands are OR'd with 0x80
             // Last byte is checksum which we don't care about
+<<<<<<< HEAD
+=======
+            if (!validate_data_in_out(command_offset + 4, 0, "SerialA"))
+              break;
+>>>>>>> crediar/master
             const u32 serial_command = Common::swap32(data_in + command_offset) ^ 0x80000000;
 
             if (AMMediaboard::GetGameType() == FZeroAX ||
@@ -898,6 +1259,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
               if (serial_command == 0x801000)
               {
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 4, "SerialA"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x31;
                 data_out[data_offset++] = 0x02;
                 data_out[data_offset++] = 0xFF;
@@ -910,6 +1276,19 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             if (AMMediaboard::GetGameType() == FZeroAX ||
                 AMMediaboard::GetGameType() == FZeroAXMonster)
             {
+<<<<<<< HEAD
+=======
+              if (command_offset + 5 >= std::size(m_motor_reply))
+              {
+                ERROR_LOG_FMT(
+                    SERIALINTERFACE_AMBB,
+                    "GC-AM: Command 0x31 (MOTOR) overflow: offset={} >= motor_reply_size={}",
+                    command_offset + 5, std::size(m_motor_reply));
+                data_in = data_in_end;
+                break;
+              }
+
+>>>>>>> crediar/master
               // Status
               m_motor_reply[command_offset + 2] = 0;
               m_motor_reply[command_offset + 3] = 0;
@@ -981,6 +1360,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
           if (length == 0)
           {
+<<<<<<< HEAD
+=======
+            if (!validate_data_in_out(length, 2, "SerialA"))
+              break;
+>>>>>>> crediar/master
             data_out[data_offset++] = gcam_command;
             data_out[data_offset++] = 0x00;
           }
@@ -992,18 +1376,50 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               m_motor_reply[0] = gcam_command;
               m_motor_reply[1] = length;  // Same out as in size
 
+<<<<<<< HEAD
               memcpy(data_out.data() + data_offset, m_motor_reply, m_motor_reply[1] + 2);
               data_offset += m_motor_reply[1] + 2;
             }
           }
 
+=======
+              const u32 reply_size = m_motor_reply[1] + 2;
+              if (!validate_data_in_out(length, reply_size, "SerialA"))
+                break;
+
+              if (reply_size > sizeof(m_motor_reply))
+              {
+                ERROR_LOG_FMT(SERIALINTERFACE_AMBB,
+                              "GC-AM: Command SerialA, reply_size={} too big for m_motor_reply",
+                              reply_size);
+                data_in = data_in_end;
+                break;
+              }
+              memcpy(data_out.data() + data_offset, m_motor_reply, reply_size);
+              data_offset += reply_size;
+            }
+          }
+
+          if (!validate_data_in_out(length, 0, "SerialA"))
+          {
+            break;
+          }
+>>>>>>> crediar/master
           data_in += length;
           break;
         }
         case GCAMCommand::SerialB:
         {
           DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 32 (CARD-Interface)");
+<<<<<<< HEAD
           const u32 length = *data_in++;
+=======
+          if (!validate_data_in_out(1, 0, "SerialB"))
+            break;
+          const u32 length = *data_in++;
+          if (!validate_data_in_out(length, 0, "SerialB"))
+            break;
+>>>>>>> crediar/master
           if (length)
           {
             // Send Card Reply
@@ -1011,6 +1427,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             {
               if (m_card_read_length)
               {
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 1, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = gcam_command;
                 u32 read_length = m_card_read_length - m_card_read;
 
@@ -1019,8 +1440,28 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                   read_length = std::min<u32>(read_length, 0x2F);
                 }
 
+<<<<<<< HEAD
                 data_out[data_offset++] = read_length;  // 0x2F (max size per packet)
 
+=======
+                if (!validate_data_in_out(0, 1, "SerialB"))
+                  break;
+                data_out[data_offset++] = read_length;  // 0x2F (max size per packet)
+
+                if (!validate_data_in_out(0, read_length, "SerialB"))
+                  break;
+                if (u64{m_card_read} + read_length > sizeof(m_card_read_packet))
+                {
+                  ERROR_LOG_FMT(SERIALINTERFACE_AMBB,
+                                "GC-AM: Command SerialB, m_card_read_packet overflow:\n"
+                                " - m_card_read_packet = {}\n"
+                                " - m_card_read = {}\n"
+                                " - read_length = {}",
+                                fmt::ptr(m_card_read_packet), m_card_read, read_length);
+                  data_in = data_in_end;
+                  break;
+                }
+>>>>>>> crediar/master
                 memcpy(data_out.data() + data_offset, m_card_read_packet + m_card_read,
                        read_length);
 
@@ -1034,6 +1475,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 break;
               }
 
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(0, 5, "SerialB"))
+                break;
+
+>>>>>>> crediar/master
               data_out[data_offset++] = gcam_command;
               const u32 command_length_offset = data_offset;
               data_out[data_offset++] = 0x00;  // len
@@ -1048,10 +1495,20 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               switch (CARDCommand(m_card_command))
               {
               case CARDCommand::Init:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x00;  // 0x02
                 data_out[data_offset++] = 0x30;  // 0x03
                 break;
               case CARDCommand::GetState:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x20 | m_card_bit;  // 0x02
 
                 // bit 0: Please take your card
@@ -1059,23 +1516,44 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 data_out[data_offset++] = 0x00;  // 0x03
                 break;
               case CARDCommand::Read:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x02;  // 0x02
                 data_out[data_offset++] = 0x53;  // 0x03
                 break;
               case CARDCommand::IsPresent:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x22;  // 0x02
                 data_out[data_offset++] = 0x30;  // 0x03
                 break;
               case CARDCommand::Write:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x02;  // 0x02
                 data_out[data_offset++] = 0x00;  // 0x03
                 break;
               case CARDCommand::SetPrintParam:
               case CARDCommand::RegisterFont:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x00;  // 0x02
                 data_out[data_offset++] = 0x00;  // 0x03
                 break;
               case CARDCommand::WriteInfo:
+<<<<<<< HEAD
                 data_out[data_offset++] = 0x02;  // 0x02
                 data_out[data_offset++] = 0x00;  // 0x03
                 break;
@@ -1083,6 +1561,19 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 // TODO: CARDCommand::Erase is not handled.
 
               case CARDCommand::Eject:
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+                data_out[data_offset++] = 0x02;  // 0x02
+                data_out[data_offset++] = 0x00;  // 0x03
+                break;
+              case CARDCommand::Erase:
+                // TODO: CARDCommand::Erase is not handled.
+                break;
+              case CARDCommand::Eject:
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 if (AMMediaboard::GetGameType() == FZeroAX)
                 {
                   data_out[data_offset++] = 0x01;  // 0x02
@@ -1094,19 +1585,39 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 data_out[data_offset++] = 0x30;  // 0x03
                 break;
               case CARDCommand::Clean:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x02;  // 0x02
                 data_out[data_offset++] = 0x00;  // 0x03
                 break;
               case CARDCommand::Load:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x02;  // 0x02
                 data_out[data_offset++] = 0x30;  // 0x03
                 break;
               case CARDCommand::SetShutter:
+<<<<<<< HEAD
+=======
+                if (!validate_data_in_out(0, 2, "SerialB"))
+                  break;
+>>>>>>> crediar/master
                 data_out[data_offset++] = 0x00;  // 0x02
                 data_out[data_offset++] = 0x00;  // 0x03
                 break;
               }
 
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(0, 3, "SerialB"))
+                break;
+>>>>>>> crediar/master
               data_out[data_offset++] = 0x30;  // 0x04
               data_out[data_offset++] = 0x00;  // 0x05
 
@@ -1114,16 +1625,42 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
               data_out[checksum_start] = data_offset - checksum_start;  // 0x00 len
 
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(0, 1, "SerialB"))
+                break;
+>>>>>>> crediar/master
               data_out[data_offset] = 0;  // 0x07
               for (u32 i = 0; i < data_out[checksum_start]; ++i)
                 data_out[data_offset] ^= data_out[checksum_start + i];
 
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(0, 1, "SerialB"))
+                break;
+>>>>>>> crediar/master
               data_offset++;
 
               data_out[command_length_offset] = data_out[checksum_start] + 2;
             }
             else
             {
+<<<<<<< HEAD
+=======
+              if (!validate_data_in_out(length, 0, "SerialB"))
+                break;
+              if (u64{m_card_offset} + length > std::size(m_card_buffer))
+              {
+                ERROR_LOG_FMT(SERIALINTERFACE_AMBB,
+                              "GC-AM: Command SerialB, m_card_buffer overflow:\n"
+                              " - m_card_buffer = {}\n"
+                              " - m_card_offset = {}\n"
+                              " - length = {}",
+                              fmt::ptr(m_card_buffer), m_card_offset, length);
+                data_in = data_in_end;
+                break;
+              }
+>>>>>>> crediar/master
               for (u32 i = 0; i < length; ++i)
                 m_card_buffer[m_card_offset + i] = data_in[i];
 
@@ -1132,6 +1669,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               // Check if we got a complete command
               if (m_card_buffer[0] == 0x02)
               {
+<<<<<<< HEAD
                 if (m_card_buffer[1] == m_card_offset - 2)
                 {
                   if (m_card_buffer[m_card_offset - 2] == 0x03)
@@ -1245,6 +1783,42 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                       memset(m_card_read_packet, 0, 0xDB);
                       u32 packet_offset = 0;
 
+=======
+                if (m_card_offset < 2)
+                {
+                  ERROR_LOG_FMT(
+                      SERIALINTERFACE_AMBB,
+                      "GC-AM: Command SerialB, m_card_buffer overflow (m_card_offset < 2):\n"
+                      " - m_card_buffer = {}\n"
+                      " - m_card_offset = {}\n"
+                      " - length = {}",
+                      fmt::ptr(m_card_buffer), m_card_offset, length);
+                  data_in = data_in_end;
+                  break;
+                }
+                if (const u32 offset = m_card_offset - 2;
+                    m_card_buffer[1] == offset && m_card_buffer[offset] == 0x03)
+                {
+                  m_card_command = m_card_buffer[2];
+
+                  switch (CARDCommand(m_card_command))
+                  {
+                  case CARDCommand::Init:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD Init");
+
+                    m_card_write_length = 0;
+                    m_card_bit = 0;
+                    m_card_memory_size = 0;
+                    m_card_state_call_count = 0;
+                    break;
+                  case CARDCommand::GetState:
+                  {
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD GetState({:02X})",
+                                   m_card_bit);
+
+                    if (m_card_memory_size == 0)
+                    {
+>>>>>>> crediar/master
                       const std::string card_filename(
                           fmt::format("{}tricard_{}.bin", File::GetUserPath(D_TRIUSER_IDX),
                                       SConfig::GetInstance().GetGameID()));
@@ -1252,16 +1826,32 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                       if (File::Exists(card_filename))
                       {
                         File::IOFile card(card_filename, "rb+");
+<<<<<<< HEAD
                         if (m_card_memory_size == 0)
                         {
                           m_card_memory_size = (u32)card.GetSize();
                         }
 
+=======
+                        m_card_memory_size = static_cast<u32>(card.GetSize());
+                        if (m_card_memory_size > sizeof(m_card_memory))
+                        {
+                          ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                                        "GC-AM: Command CARD GetState overflow:\n"
+                                        " - file name = {}\n"
+                                        " - file size = {}\n"
+                                        " - card size = {}",
+                                        card_filename, m_card_memory_size, sizeof(m_card_memory));
+                          data_in = data_in_end;
+                          break;
+                        }
+>>>>>>> crediar/master
                         card.ReadBytes(m_card_memory, m_card_memory_size);
                         card.Close();
 
                         m_card_is_inserted = true;
                       }
+<<<<<<< HEAD
 
                       m_card_read_packet[packet_offset++] = 0x02;  // SUB CMD
                       m_card_read_packet[packet_offset++] = 0x00;  // SUB CMDLen
@@ -1368,6 +1958,242 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 }
               }
 
+=======
+                    }
+
+                    if (AMMediaboard::GetGameType() == FZeroAX && m_card_memory_size)
+                    {
+                      m_card_state_call_count++;
+                      if (m_card_state_call_count > 10)
+                      {
+                        if (m_card_bit & 2)
+                          m_card_bit &= ~2u;
+                        else
+                          m_card_bit |= 2;
+
+                        m_card_state_call_count = 0;
+                      }
+                    }
+
+                    if (m_card_clean == 1)
+                    {
+                      m_card_clean = 2;
+                    }
+                    else if (m_card_clean == 2)
+                    {
+                      const std::string card_filename(
+                          fmt::format("{}tricard_{}.bin", File::GetUserPath(D_TRIUSER_IDX),
+                                      SConfig::GetInstance().GetGameID()));
+
+                      if (File::Exists(card_filename))
+                      {
+                        m_card_memory_size = static_cast<u32>(File::GetSize(card_filename));
+                        if (m_card_memory_size)
+                        {
+                          if (AMMediaboard::GetGameType() == FZeroAX)
+                          {
+                            m_card_bit = 2;
+                          }
+                          else
+                          {
+                            m_card_bit = 1;
+                          }
+                        }
+                      }
+                      m_card_clean = 0;
+                    }
+                    break;
+                  }
+                  case CARDCommand::IsPresent:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD IsPresent");
+                    break;
+                  case CARDCommand::RegisterFont:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD RegisterFont");
+                    break;
+                  case CARDCommand::Load:
+                  {
+                    const u8 mode = m_card_buffer[6];
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD Load({:02X})", mode);
+                    break;
+                  }
+                  case CARDCommand::Clean:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD Clean");
+                    m_card_clean = 1;
+                    break;
+                  case CARDCommand::Read:
+                  {
+                    const u8 mode = m_card_buffer[6];
+                    const u8 bitmode = m_card_buffer[7];
+                    const u8 track = m_card_buffer[8];
+
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD,
+                                   "GC-AM: Command CARD Read({:02X},{:02X},{:02X})", mode, bitmode,
+                                   track);
+
+                    // Prepare read packet
+                    memset(m_card_read_packet, 0, 0xDB);
+
+                    const std::string card_filename(
+                        fmt::format("{}tricard_{}.bin", File::GetUserPath(D_TRIUSER_IDX),
+                                    SConfig::GetInstance().GetGameID()));
+
+                    if (File::Exists(card_filename))
+                    {
+                      File::IOFile card(card_filename, "rb+");
+                      if (m_card_memory_size == 0)
+                      {
+                        m_card_memory_size = static_cast<u32>(card.GetSize());
+                      }
+
+                      if (m_card_memory_size > sizeof(m_card_memory))
+                      {
+                        ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                                      "GC-AM: Command CARD Read overflow:\n"
+                                      " - file name = {}\n"
+                                      " - file size = {}\n"
+                                      " - card size = {}",
+                                      card_filename, m_card_memory_size, sizeof(m_card_memory));
+                        data_in = data_in_end;
+                        break;
+                      }
+                      card.ReadBytes(m_card_memory, m_card_memory_size);
+                      card.Close();
+
+                      m_card_is_inserted = true;
+                    }
+                    else if (m_card_memory_size > sizeof(m_card_memory))
+                    {
+                      ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                                    "GC-AM: Command CARD Read overflow:\n"
+                                    " - requested size = {}\n"
+                                    " - card size = {}",
+                                    m_card_memory_size, sizeof(m_card_memory));
+                      data_in = data_in_end;
+                      break;
+                    }
+
+                    m_card_read_packet[0] = 0x02;  // SUB CMD
+                    m_card_read_packet[1] = 0x00;  // SUB CMDLen
+
+                    m_card_read_packet[2] = 0x33;  // CARD CMD
+
+                    if (m_card_is_inserted)  // CARD Status
+                    {
+                      m_card_read_packet[3] = 0x31;
+                    }
+                    else
+                    {
+                      m_card_read_packet[3] = 0x30;
+                    }
+
+                    m_card_read_packet[4] = 0x30;
+                    m_card_read_packet[5] = 0x30;
+
+                    u32 packet_offset = 6;
+                    // Data reply
+                    static_assert(sizeof(m_card_read_packet) >= sizeof(m_card_memory) + 6);
+                    memcpy(m_card_read_packet + packet_offset, m_card_memory, m_card_memory_size);
+                    packet_offset += m_card_memory_size;
+
+                    static_assert(sizeof(m_card_read_packet) >= sizeof(m_card_memory) + 7);
+                    m_card_read_packet[packet_offset++] = 0x03;
+
+                    m_card_read_packet[1] = packet_offset - 1;  // SUB CMDLen
+
+                    static_assert(sizeof(m_card_read_packet) >= sizeof(m_card_memory) + 8);
+                    for (u32 i = 0; i < packet_offset - 1; ++i)
+                      m_card_read_packet[packet_offset] ^= m_card_read_packet[1 + i];
+
+                    static_assert(sizeof(m_card_read_packet) >= sizeof(m_card_memory) + 9);
+                    packet_offset++;
+
+                    m_card_read_length = packet_offset;
+                    m_card_read = 0;
+                    break;
+                  }
+                  case CARDCommand::Write:
+                  {
+                    const u8 mode = m_card_buffer[6];
+                    const u8 bitmode = m_card_buffer[7];
+                    const u8 track = m_card_buffer[8];
+
+                    m_card_memory_size = m_card_buffer[1] - 9;
+                    if (m_card_memory_size > sizeof(m_card_memory))
+                    {
+                      ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                                    "GC-AM: Command CARD Write overflow:\n"
+                                    " - write size = {}\n"
+                                    " - card size = {}",
+                                    m_card_memory_size, sizeof(m_card_memory));
+                      data_in = data_in_end;
+                      break;
+                    }
+
+                    static_assert(sizeof(m_card_buffer) >= sizeof(m_card_memory) + 9);
+                    memcpy(m_card_memory, m_card_buffer + 9, m_card_memory_size);
+
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD,
+                                   "GC-AM: Command CARD Write: {:02X} {:02X} {:02X} {}", mode,
+                                   bitmode, track, m_card_memory_size);
+
+                    const std::string card_filename(File::GetUserPath(D_TRIUSER_IDX) + "tricard_" +
+                                                    SConfig::GetInstance().GetGameID() + ".bin");
+
+                    File::IOFile card(card_filename, "wb+");
+                    card.WriteBytes(m_card_memory, m_card_memory_size);
+                    card.Close();
+
+                    m_card_bit = 2;
+
+                    m_card_state_call_count = 0;
+                    break;
+                  }
+                  case CARDCommand::SetPrintParam:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD SetPrintParam");
+                    break;
+                  case CARDCommand::WriteInfo:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD WriteInfo");
+                    break;
+                  case CARDCommand::Erase:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD Erase");
+                    break;
+                  case CARDCommand::Eject:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD Eject");
+                    if (AMMediaboard::GetGameType() != FZeroAX)
+                    {
+                      m_card_bit = 0;
+                    }
+                    break;
+                  case CARDCommand::SetShutter:
+                    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command CARD SetShutter");
+                    if (AMMediaboard::GetGameType() != FZeroAX)
+                    {
+                      m_card_bit = 0;
+                    }
+                    // Close
+                    if (m_card_buffer[6] == 0x30)
+                    {
+                      m_card_shutter = false;
+                    }
+                    // Open
+                    else if (m_card_buffer[6] == 0x31)
+                    {
+                      m_card_shutter = true;
+                    }
+                    break;
+                  default:
+                    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: CARD:Unhandled command!");
+                    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: CARD:[{:08X}]", m_card_command);
+                    // hexdump( m_card_buffer, m_card_offset );
+                    break;
+                  }
+                  m_card_offset = 0;
+                }
+              }
+
+              if (!validate_data_in_out(0, 3, "SerialB"))
+                break;
+>>>>>>> crediar/master
               data_out[data_offset++] = 0x32;
               data_out[data_offset++] = 0x01;  // len
               data_out[data_offset++] = 0x06;  // OK
@@ -1375,6 +2201,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           }
           else
           {
+<<<<<<< HEAD
+=======
+            if (!validate_data_in_out(0, 2, "SerialB"))
+              break;
+>>>>>>> crediar/master
             data_out[data_offset++] = gcam_command;
             data_out[data_offset++] = 0x00;  // len
           }
@@ -1384,41 +2215,89 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         case GCAMCommand::JVSIOA:
         case GCAMCommand::JVSIOB:
         {
+<<<<<<< HEAD
           DEBUG_LOG_FMT(
               SERIALINTERFACE_JVSIO,
               "GC-AM: Command {:02x}, {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} (JVS IO)",
               gcam_command, data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5],
               data_in[6]);
+=======
+          if (!validate_data_in_out(4, 0, "JVSIO"))
+            break;
+>>>>>>> crediar/master
 
           JVSIOMessage message;
 
           static int delay = 0;
 
+<<<<<<< HEAD
           const u8* frame = &data_in[0];
+=======
+          const u8* const frame = &data_in[0];
+>>>>>>> crediar/master
           const u8 nr_bytes = frame[3];  // Byte after E0 xx
           u32 frame_len = nr_bytes + 3;  // Header(2) + length byte + payload + checksum
 
           u8 jvs_buf[0x80];
 
+<<<<<<< HEAD
           if (frame_len > sizeof(jvs_buf))
           {
             frame_len = sizeof(jvs_buf);
           }
+=======
+          frame_len = std::min<u32>(frame_len, sizeof(jvs_buf));
+
+          if (!validate_data_in_out(frame_len, 0, "JVSIO"))
+            break;
+          DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "GC-AM: Command {:02x} (JVS IO), hexdump:\n{}",
+                        gcam_command, HexDump(data_in, frame_len));
+>>>>>>> crediar/master
 
           memcpy(jvs_buf, frame, frame_len);
 
           // Extract node and payload pointers
           u8 node = jvs_buf[2];
           u8* jvs_io = jvs_buf + 4;                 // First payload byte
+<<<<<<< HEAD
           const u8* jvs_end = jvs_buf + frame_len;  // One byte before checksum
+=======
+          u8* const jvs_end = jvs_buf + frame_len;  // One byte before checksum
+          u8* const jvs_begin = jvs_io;
+>>>>>>> crediar/master
 
           message.Start(0);
           message.AddData(1);
 
+<<<<<<< HEAD
           // Now iterate over the payload
           while (jvs_io < jvs_end)
           {
             int jvsio_command = *jvs_io++;
+=======
+          // Helper to check that iterating over jvs_io n times is safe,
+          // i.e. *jvs_io++ at most lead to jvs_end
+          auto validate_jvs_io = [&](u32 n, std::string_view command) -> bool {
+            if (jvs_io + n > jvs_end)
+              ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: overflow in {}", command);
+            else
+              return true;
+            ERROR_LOG_FMT(SERIALINTERFACE_JVSIO,
+                          "Overflow details:\n"
+                          " - jvs_io(begin={}, current={}, end={}, n={})\n"
+                          " - delay={}, node={}\n"
+                          " - frame(begin={}, len={})",
+                          fmt::ptr(jvs_begin), fmt::ptr(jvs_io), fmt::ptr(jvs_end), n, delay, node,
+                          fmt::ptr(frame), frame_len);
+            jvs_io = jvs_end;
+            return false;
+          };
+
+          // Now iterate over the payload
+          while (jvs_io < jvs_end)
+          {
+            const u8 jvsio_command = *jvs_io++;
+>>>>>>> crediar/master
             DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO:node={}, command={:02x}", node,
                           jvsio_command);
 
@@ -1553,6 +2432,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x14, CheckFunctionality");
               break;
             case JVSIOCommand::MainID:
+<<<<<<< HEAD
               while (*jvs_io++)
               {
               };
@@ -1562,6 +2442,27 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             {
               u32 player_count = *jvs_io++;
               u32 player_byte_count = *jvs_io++;
+=======
+            {
+              const u8* const main_id = jvs_io;
+              while (jvs_io < jvs_end && *jvs_io++)
+              {
+              }
+              if (main_id < jvs_io)
+              {
+                DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command MainId:\n{}",
+                              HexDump(main_id, jvs_io - main_id));
+              }
+              message.AddData(StatusOkay);
+              break;
+            }
+            case JVSIOCommand::SwitchesInput:
+            {
+              if (!validate_jvs_io(2, "SwitchesInput"))
+                break;
+              const u32 player_count = *jvs_io++;
+              const u32 player_byte_count = *jvs_io++;
+>>>>>>> crediar/master
 
               DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO:  Command 0x20, SwitchInputs: {} {}",
                             player_count, player_byte_count);
@@ -1590,7 +2491,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
               for (u32 i = 0; i < player_count; ++i)
               {
+<<<<<<< HEAD
                 u8 player_data[3]{};
+=======
+                std::array<u8, 3> player_data{};
+>>>>>>> crediar/master
 
                 // Service button
                 if (pad_status.switches & SWITCH_SERVICE)
@@ -1837,16 +2742,43 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 break;
                 }
 
+<<<<<<< HEAD
                 for (u32 j = 0; j < player_byte_count; ++j)
+=======
+                if (player_byte_count > player_data.size())
+                {
+                  WARN_LOG_FMT(SERIALINTERFACE_JVSIO,
+                               "JVS-IO:  Command 0x20, SwitchInputs: invalid player_byte_count={}",
+                               player_byte_count);
+                }
+                const u32 data_size = std::min(player_byte_count, u32(player_data.size()));
+                for (u32 j = 0; j < data_size; ++j)
+>>>>>>> crediar/master
                   message.AddData(player_data[j]);
               }
               break;
             }
             case JVSIOCommand::CoinInput:
             {
+<<<<<<< HEAD
               const u32 slots = *jvs_io++;
               message.AddData(StatusOkay);
               for (u32 i = 0; i < slots; i++)
+=======
+              if (!validate_jvs_io(1, "CoinInput"))
+                break;
+              const u32 slots = *jvs_io++;
+              message.AddData(StatusOkay);
+              static_assert(std::tuple_size<decltype(m_coin)>{} == 2 &&
+                            std::tuple_size<decltype(m_coin_pressed)>{} == 2);
+              if (slots > 2)
+              {
+                WARN_LOG_FMT(SERIALINTERFACE_JVSIO,
+                             "JVS-IO: Command 0x21, CoinInput: invalid slots {}", slots);
+              }
+              const u32 max_slots = std::min(slots, 2u);
+              for (u32 i = 0; i < max_slots; i++)
+>>>>>>> crediar/master
               {
                 GCPadStatus pad_status = Pad::GetStatus(i);
                 if ((pad_status.switches & SWITCH_COIN) && !m_coin_pressed[i])
@@ -1862,6 +2794,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             }
             case JVSIOCommand::AnalogInput:
             {
+<<<<<<< HEAD
+=======
+              if (!validate_jvs_io(1, "AnalogInput"))
+                break;
+>>>>>>> crediar/master
               message.AddData(StatusOkay);
 
               const u32 analogs = *jvs_io++;
@@ -1957,6 +2894,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             }
             case JVSIOCommand::PositionInput:
             {
+<<<<<<< HEAD
+=======
+              if (!validate_jvs_io(1, "PositionInput"))
+                break;
+>>>>>>> crediar/master
               const u32 channel = *jvs_io++;
 
               const GCPadStatus pad_status = Pad::GetStatus(0);
@@ -1978,11 +2920,28 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             }
             case JVSIOCommand::CoinSubOutput:
             {
+<<<<<<< HEAD
+=======
+              if (!validate_jvs_io(3, "CoinSubOutput"))
+                break;
+>>>>>>> crediar/master
               const u32 slot = *jvs_io++;
               const u8 coinh = *jvs_io++;
               const u8 coinl = *jvs_io++;
 
+<<<<<<< HEAD
               m_coin[slot] -= (coinh << 8) | coinl;
+=======
+              if (slot < m_coin.size())
+              {
+                m_coin[slot] -= (coinh << 8) | coinl;
+              }
+              else
+              {
+                WARN_LOG_FMT(SERIALINTERFACE_JVSIO,
+                             "JVS-IO: Command 0x30, CoinSubOutput: invalid slot {}", slot);
+              }
+>>>>>>> crediar/master
 
               message.AddData(StatusOkay);
               DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x30, CoinSubOutput: {}", slot);
@@ -1990,6 +2949,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             }
             case JVSIOCommand::GeneralDriverOutput:
             {
+<<<<<<< HEAD
+=======
+              if (!validate_jvs_io(1, "GeneralDriverOutput"))
+                break;
+>>>>>>> crediar/master
               const u32 bytes = *jvs_io++;
 
               if (bytes)
@@ -1999,6 +2963,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 // The lamps are controlled via this
                 if (AMMediaboard::GetGameType() == MarioKartGP)
                 {
+<<<<<<< HEAD
+=======
+                  if (!validate_jvs_io(1, "GeneralDriverOutput (MarioKartGP)"))
+                    break;
+>>>>>>> crediar/master
                   const u32 status = *jvs_io++;
                   if (status & 4)
                   {
@@ -2019,6 +2988,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                   break;
                 }
 
+<<<<<<< HEAD
                 Common::UniqueBuffer<u8> buf(bytes);
 
                 for (u32 i = 0; i < bytes; ++i)
@@ -2034,6 +3004,27 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
                 // Handling of the motion seat used in F-Zero AXs DX version
                 switch (Common::swap16(buf.data() + 1) >> 2)
+=======
+                if (!validate_jvs_io(bytes, "GeneralDriverOutput"))
+                  break;
+
+                INFO_LOG_FMT(SERIALINTERFACE_JVSIO,
+                             "JVS-IO: Command 0x32, GPO: delay=0x{:02x}, rx_reply=0x{:02x},"
+                             " bytes={}, buffer:\n{}",
+                             delay, m_rx_reply, bytes, HexDump(jvs_io, bytes));
+
+                if (bytes < 3)
+                {
+                  jvs_io += bytes;
+                  break;
+                }
+
+                // Handling of the motion seat used in F-Zero AXs DX version
+                const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
+                jvs_io += bytes;
+
+                switch (seat_state)
+>>>>>>> crediar/master
                 {
                 case 0x70:
                   delay++;
@@ -2055,6 +3046,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             }
             case JVSIOCommand::CoinAddOutput:
             {
+<<<<<<< HEAD
+=======
+              if (!validate_jvs_io(3, "CoinAddOutput"))
+                break;
+>>>>>>> crediar/master
               const u32 slot = *jvs_io++;
               const u8 coinh = *jvs_io++;
               const u8 coinl = *jvs_io++;
@@ -2067,10 +3063,22 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             }
             case JVSIOCommand::NAMCOCommand:
             {
+<<<<<<< HEAD
               const u32 namco_command = *jvs_io++;
 
               if (namco_command == 0x18)
               {  // ID check
+=======
+              if (!validate_jvs_io(1, "NAMCOCommand"))
+                break;
+              const u32 namco_command = *jvs_io++;
+
+              if (namco_command == 0x18)
+              {
+                if (!validate_jvs_io(4, "NAMCOCommand(0x18) / ID check"))
+                  break;
+                // ID check
+>>>>>>> crediar/master
                 jvs_io += 4;
                 message.AddData(StatusOkay);
                 message.AddData(0xff);
@@ -2083,6 +3091,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               break;
             }
             case JVSIOCommand::Reset:
+<<<<<<< HEAD
+=======
+              if (!validate_jvs_io(1, "Reset"))
+                break;
+>>>>>>> crediar/master
               if (*jvs_io++ == 0xD9)
               {
                 NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0xF0, Reset");
@@ -2095,11 +3108,20 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               dip_switch_1 |= 1;
               break;
             case JVSIOCommand::SetAddress:
+<<<<<<< HEAD
+=======
+              if (!validate_jvs_io(1, "SetAddress"))
+                break;
+>>>>>>> crediar/master
               node = *jvs_io++;
               NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0xF1, SetAddress: node={}",
                              node);
               message.AddData(node == 1);
+<<<<<<< HEAD
               dip_switch_1 &= ~1;
+=======
+              dip_switch_1 &= ~1u;
+>>>>>>> crediar/master
               break;
             default:
               ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Unhandled: node={}, command={:02x}",
@@ -2110,11 +3132,17 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
           message.End();
 
+<<<<<<< HEAD
+=======
+          if (!validate_data_in_out(0, 2, "JVSIO"))
+            break;
+>>>>>>> crediar/master
           data_out[data_offset++] = gcam_command;
 
           const u8* buf = message.m_message.data();
           const u32 len = message.m_pointer;
           data_out[data_offset++] = len;
+<<<<<<< HEAD
 
           for (u32 i = 0; i < len; ++i)
             data_out[data_offset++] = buf[i];
@@ -2128,6 +3156,35 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           data_in += data_in[0] + 1;
           break;
         default:
+=======
+          const u32 in_size = frame[0] + 1;
+
+          if (!validate_data_in_out(in_size, len, "JVSIO"))
+            break;
+          for (u32 i = 0; i < len; ++i)
+            data_out[data_offset++] = buf[i];
+
+          data_in += in_size;
+          break;
+        }
+        case GCAMCommand::Unknown_60:
+        {
+          if (!validate_data_in_out(3, 0, "Unknown_60"))
+            break;
+
+          NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x60, {:02x} {:02x} {:02x}",
+                         data_in[0], data_in[1], data_in[2]);
+
+          const u32 in_size = data_in[0] + 1;
+          if (!validate_data_in_out(in_size, 0, "Unknown_60"))
+            break;
+          data_in += in_size;
+        }
+        break;
+        default:
+          if (!validate_data_in_out(5, 0, fmt::format("Unknown_{}", gcam_command)))
+            break;
+>>>>>>> crediar/master
           ERROR_LOG_FMT(SERIALINTERFACE_AMBB,
                         "GC-AM: Command {:02x} (unknown) {:02x} {:02x} {:02x} {:02x} {:02x}",
                         gcam_command, data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]);
@@ -2141,12 +3198,29 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
       data_out[1] = data_offset - 2;
       checksum = 0;
 
+<<<<<<< HEAD
       for (int i = 0; i < 0x7F; ++i)
       {
         checksum += data_in[i] = data_out[i];
       }
       data_in[0x7f] = ~checksum;
       DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "Command send back: {}", HexDump(data_out.data(), 0x7F));
+=======
+      if (buffer_length >= 0x80)
+      {
+        for (int i = 0; i < 0x7F; ++i)
+        {
+          checksum += data_in[i] = data_out[i];
+        }
+        data_in[0x7f] = ~checksum;
+        DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "Command send back: {}",
+                      HexDump(data_out.data(), 0x7F));
+      }
+      else
+      {
+        ERROR_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: overflow in GCAM_Command's checksum");
+      }
+>>>>>>> crediar/master
 
       SwapBuffers(buffer, &buffer_length);
 
@@ -2180,13 +3254,20 @@ CSIDevice_AMBaseboard::EButtonCombo
 CSIDevice_AMBaseboard::HandleButtonCombos(const GCPadStatus& pad_status)
 {
   // Keep track of the special button combos (embedded in controller hardware... :( )
+<<<<<<< HEAD
   EButtonCombo temp_combo;
+=======
+  EButtonCombo temp_combo = COMBO_NONE;
+>>>>>>> crediar/master
   if ((pad_status.button & 0xff00) == (PAD_BUTTON_Y | PAD_BUTTON_X | PAD_BUTTON_START))
     temp_combo = COMBO_ORIGIN;
   else if ((pad_status.button & 0xff00) == (PAD_BUTTON_B | PAD_BUTTON_X | PAD_BUTTON_START))
     temp_combo = COMBO_RESET;
+<<<<<<< HEAD
   else
     temp_combo = COMBO_NONE;
+=======
+>>>>>>> crediar/master
 
   if (temp_combo != m_last_button_combo)
   {
