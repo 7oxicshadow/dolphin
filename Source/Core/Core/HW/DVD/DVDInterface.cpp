@@ -289,14 +289,9 @@ void DVDInterface::Init()
 
     // The Triforce IPL expects the cover to be closed
     m_DICVR.Hex = 0;
-<<<<<<< HEAD
-    m_DICFG.Hex |= 8; /* The Triforce IPL checks this bit
-                       to set the physical memory to either 50MB(unset) or 24MB(set)  */
-=======
     // The Triforce IPL checks this bit to set the physical memory to
     // either 50MB(unset) or 24MB(set)
     m_DICFG.Hex |= 8;
->>>>>>> crediar/master
   }
 }
 
@@ -327,11 +322,7 @@ void DVDInterface::ResetDrive(bool spinup)
   else if (!spinup)
   {
     // Wii hardware tests indicate that this is used when ejecting and inserting a new disc, or
-<<<<<<< HEAD
-    // performing a reset without spin up.
-=======
     // performing a reset without spin-up.
->>>>>>> crediar/master
     SetDriveState(DriveState::DiscChangeDetected);
   }
   else

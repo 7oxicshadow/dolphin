@@ -4,10 +4,7 @@
 #include "Core/HW/DVD/AMMediaboard.h"
 
 #include <algorithm>
-<<<<<<< HEAD
 #include <cstdint>
-=======
->>>>>>> crediar/master
 #include <string>
 #include <unordered_map>
 
@@ -18,10 +15,7 @@
 #include "Common/FileUtil.h"
 #include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
-<<<<<<< HEAD
-=======
 #include "Common/Network.h"
->>>>>>> crediar/master
 
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
@@ -40,11 +34,8 @@
 #include "Core/Movie.h"
 #include "Core/System.h"
 
-<<<<<<< HEAD
 #include "DiscIO/DirectoryBlob.h"
 
-=======
->>>>>>> crediar/master
 #if defined(__linux__) or defined(__APPLE__) or defined(__FreeBSD__) or defined(__NetBSD__) or     \
     defined(__HAIKU__)
 
@@ -82,11 +73,8 @@ static int WSAGetLastError()
 namespace AMMediaboard
 {
 
-<<<<<<< HEAD
-=======
 using Common::SEND_FLAGS;
 
->>>>>>> crediar/master
 static bool s_firmware_map = false;
 static bool s_test_menu = false;
 static SOCKET s_fd_namco_cam = 0;
@@ -113,11 +101,8 @@ static u8 s_network_buffer[512 * 1024];
 static u8 s_allnet_buffer[4096];
 static u8 s_allnet_settings[0x8500];
 
-<<<<<<< HEAD
-=======
 static constexpr size_t MAX_IPV4_STRING_LENGTH = 15;
 
->>>>>>> crediar/master
 constexpr char s_allnet_reply[] = {
     "uri=http://"
     "sega.com&host=sega.com&nickname=sega&name=sega&year=2025&month=08&day=16&hour=21&minute=10&"
@@ -233,16 +218,6 @@ static bool SafeCopyToEmu(Memory::MemoryManager& memory, u32 address, const u8* 
   memory.CopyToEmu(address, source + offset, length);
   return true;
 }
-<<<<<<< HEAD
-static bool SafeCopyFromEmu(Memory::MemoryManager& memory, u8* destionation, u32 address,
-                            u64 destionation_size, u32 offset, u32 length)
-{
-  if (offset > destionation_size || length > destionation_size - offset)
-  {
-    ERROR_LOG_FMT(AMMEDIABOARD,
-                  "GC-AM: Write overflow: offset=0x{:08x}, length={}, destionation_size={}", offset,
-                  length, destionation_size);
-=======
 
 static bool SafeCopyFromEmu(Memory::MemoryManager& memory, u8* destination, u32 address,
                             u64 destination_size, u32 offset, u32 length)
@@ -252,7 +227,6 @@ static bool SafeCopyFromEmu(Memory::MemoryManager& memory, u8* destination, u32 
     ERROR_LOG_FMT(AMMEDIABOARD,
                   "GC-AM: Write overflow: offset=0x{:08x}, length={}, destination_size={}", offset,
                   length, destination_size);
->>>>>>> crediar/master
     return false;
   }
 
@@ -265,23 +239,12 @@ static bool SafeCopyFromEmu(Memory::MemoryManager& memory, u8* destination, u32 
     return false;
   }
 
-<<<<<<< HEAD
-  memory.CopyFromEmu(destionation + offset, address, length);
-=======
   memory.CopyFromEmu(destination + offset, address, length);
->>>>>>> crediar/master
   return true;
 }
 
 static SOCKET socket_(int af, int type, int protocol)
 {
-<<<<<<< HEAD
-  for (u32 i = 1; i < 64; ++i)
-  {
-    if (s_sockets[i] == SOCKET_ERROR)
-    {
-      s_sockets[i] = socket(af, type, protocol);
-=======
   for (u32 i = 1; i < std::size(s_sockets); ++i)
   {
     if (s_sockets[i] == SOCKET_ERROR)
@@ -297,7 +260,6 @@ static SOCKET socket_(int af, int type, int protocol)
       Common::SetPlatformSocketOptions(host_fd);
 
       s_sockets[i] = host_fd;
->>>>>>> crediar/master
       return i;
     }
   }
@@ -308,11 +270,7 @@ static SOCKET socket_(int af, int type, int protocol)
 
 static SOCKET accept_(int fd, sockaddr* addr, socklen_t* len)
 {
-<<<<<<< HEAD
-  for (u32 i = 1; i < 64; ++i)
-=======
   for (u32 i = 1; i < std::size(s_sockets); ++i)
->>>>>>> crediar/master
   {
     if (s_sockets[i] == SOCKET_ERROR)
     {
@@ -428,22 +386,11 @@ u8* InitDIMM(u32 size)
   if (size == 0)
     return nullptr;
 
-<<<<<<< HEAD
-  if (s_dimm_disc.empty())
-  {
-    s_dimm_disc.reset(size);
-    if (s_dimm_disc.empty())
-    {
-      PanicAlertFmt("Failed to allocate DIMM memory.");
-      return nullptr;
-    }
-=======
   s_dimm_disc.reset(size);
   if (s_dimm_disc.empty())
   {
     PanicAlertFmt("Failed to allocate DIMM memory.");
     return nullptr;
->>>>>>> crediar/master
   }
 
   s_firmware_map = false;
@@ -453,11 +400,7 @@ u8* InitDIMM(u32 size)
 static s32 NetDIMMAccept(int fd, sockaddr* addr, socklen_t* len)
 {
   SOCKET client_sock = INVALID_SOCKET;
-<<<<<<< HEAD
-  fd_set readfds;
-=======
   fd_set readfds{};
->>>>>>> crediar/master
 
   FD_ZERO(&readfds);
   FD_SET(fd, &readfds);
@@ -477,11 +420,8 @@ static s32 NetDIMMAccept(int fd, sockaddr* addr, socklen_t* len)
       return client_sock;
     }
 
-<<<<<<< HEAD
-=======
     ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: accept() failed in NetDIMMAccept ({})",
                   Common::StrNetworkError());
->>>>>>> crediar/master
     s_last_error = SOCKET_ERROR;
     return SOCKET_ERROR;
   }
@@ -493,12 +433,8 @@ static s32 NetDIMMAccept(int fd, sockaddr* addr, socklen_t* len)
   }
   else
   {
-<<<<<<< HEAD
-    // select() failed
-=======
     ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: select() failed in NetDIMMAccept ({})",
                   Common::StrNetworkError());
->>>>>>> crediar/master
     s_last_error = SOCKET_ERROR;
   }
 
@@ -532,14 +468,11 @@ static s32 NetDIMMConnect(int fd, sockaddr_in* addr, int len)
   // Key of Avalon Client
   if (addr->sin_addr.s_addr == inet_addr("192.168.13.1"))
   {
-<<<<<<< HEAD
-=======
     // Unlike the other addresses, this one isn't converted to loopback
     // because the server and client can't run on the same system.
     //
     // NOTE: Due to lack of touch-screen support, it's not in a playable state.
     // TODO: Make the IP configurable.
->>>>>>> crediar/master
     addr->sin_addr.s_addr = inet_addr("10.0.0.45");
   }
 
@@ -554,11 +487,7 @@ static s32 NetDIMMConnect(int fd, sockaddr_in* addr, int len)
 
   if (ret == SOCKET_ERROR && err == WSAEWOULDBLOCK)
   {
-<<<<<<< HEAD
-    fd_set writefds;
-=======
     fd_set writefds{};
->>>>>>> crediar/master
     FD_ZERO(&writefds);
     FD_SET(fd, &writefds);
 
@@ -579,11 +508,8 @@ static s32 NetDIMMConnect(int fd, sockaddr_in* addr, int len)
       }
       else
       {
-<<<<<<< HEAD
-=======
         ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: getsockopt() failed in NetDIMMConnect ({})",
                       Common::StrNetworkError());
->>>>>>> crediar/master
         s_last_error = SOCKET_ERROR;
         ret = SOCKET_ERROR;
       }
@@ -596,12 +522,8 @@ static s32 NetDIMMConnect(int fd, sockaddr_in* addr, int len)
     }
     else
     {
-<<<<<<< HEAD
-      // select() failed
-=======
       ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: select() failed in NetDIMMConnect ({})",
                     Common::StrNetworkError());
->>>>>>> crediar/master
       s_last_error = SOCKET_ERROR;
       ret = SOCKET_ERROR;
     }
@@ -609,11 +531,8 @@ static s32 NetDIMMConnect(int fd, sockaddr_in* addr, int len)
   else if (ret == SOCKET_ERROR)
   {
     // Immediate failure (e.g. WSAECONNREFUSED)
-<<<<<<< HEAD
-=======
     ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: NetDIMMConnect failed, connect() = {} ({})", err,
                   Common::DecodeNetworkError(err));
->>>>>>> crediar/master
     s_last_error = ret;
   }
   else
@@ -644,10 +563,6 @@ static void FileWriteData(Memory::MemoryManager& memory, File::IOFile* file, u32
                   address, length, span.size());
   }
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> crediar/master
 static void FileReadData(Memory::MemoryManager& memory, File::IOFile* file, u32 seek_pos,
                          u32 address, size_t length)
 {
@@ -820,13 +735,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
     {
       INFO_LOG_FMT(AMMEDIABOARD, "GC-AM: Read All.Net Buffer ({:08x},{})", offset, length);
       // Fake reply
-<<<<<<< HEAD
-      SafeCopyToEmu(memory, address, (u8*)s_allnet_reply, sizeof(s_allnet_reply),
-                    offset - AllNetBuffer, sizeof(s_allnet_reply));
-=======
       SafeCopyToEmu(memory, address, reinterpret_cast<const u8*>(s_allnet_reply),
                     sizeof(s_allnet_reply), offset - AllNetBuffer, sizeof(s_allnet_reply));
->>>>>>> crediar/master
       return 0;
     }
 
@@ -897,13 +807,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
             break;
           }
 
-<<<<<<< HEAD
-          ret = NetDIMMAccept(fd, &addr, &len);
-          if (len)
-          {
-            memcpy((s_network_command_buffer + addr_off), &addr, len);
-            memcpy((s_network_command_buffer + len_off), &len, sizeof(int));
-=======
           // TODO: Check that the current implementation is correct. Currently, `len=0`,
           // so `accept()` might not write to `addr` properly. It might be missing the
           // following (assuming the code, address and endianness are correct):
@@ -916,7 +819,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           {
             memcpy(s_network_command_buffer + addr_off, &addr, sizeof(sockaddr));
             memcpy(s_network_command_buffer + len_off, &len, sizeof(u32));
->>>>>>> crediar/master
           }
         }
 
@@ -931,11 +833,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const u32 off = s_media_buffer_32[3] - NetworkCommandAddress2;
         const u32 len = s_media_buffer_32[4];
 
-<<<<<<< HEAD
-        if (!NetworkCMDBufferCheck(off, len))
-=======
         if (!NetworkCMDBufferCheck(off, std::max<u32>(sizeof(sockaddr_in), len)))
->>>>>>> crediar/master
         {
           break;
         }
@@ -956,16 +854,12 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const int err = WSAGetLastError();
 
         if (ret < 0)
-<<<<<<< HEAD
-          PanicAlertFmt("Socket Bind Failed with{0}", err);
-=======
         {
           const auto err_msg = Common::DecodeNetworkError(err);
           PanicAlertFmt("Failed to bind socket (error {}: {})", err, err_msg);
           ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: AMMBCommand::Bind failed, bind() = {} ({})", err,
                         err_msg);
         }
->>>>>>> crediar/master
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: bind( {}, ({},{:08x}:{}), {} ):{} ({})\n", fd,
                        addr.sin_family, addr.sin_addr.s_addr, Common::swap16(addr.sin_port), len,
@@ -996,11 +890,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const u32 off = s_media_buffer_32[3] - NetworkCommandAddress2;
         const u32 len = s_media_buffer_32[4];
 
-<<<<<<< HEAD
-        if (!NetworkCMDBufferCheck(off, len))
-=======
         if (!NetworkCMDBufferCheck(off, std::max<u32>(sizeof(sockaddr_in), len)))
->>>>>>> crediar/master
         {
           break;
         }
@@ -1023,12 +913,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const char* ip_address = reinterpret_cast<char*>(s_network_command_buffer);
 
         // IP address shouldn't be longer than 15
-<<<<<<< HEAD
-        if (strnlen(ip_address, 15) > 15)
-=======
         // TODO: Shouldn't this look at 16 characters for lack of null-termination?
         if (strnlen(ip_address, MAX_IPV4_STRING_LENGTH) > MAX_IPV4_STRING_LENGTH)
->>>>>>> crediar/master
         {
           ERROR_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: Invalid size for address: InetAddr():{}\n",
                         strlen(ip_address));
@@ -1060,15 +946,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const SOCKET fd = s_sockets[SocketCheck(s_media_buffer_32[2])];
         u32 off = s_media_buffer_32[3];
         auto len = std::min<u32>(s_media_buffer_32[4], sizeof(s_network_buffer));
-<<<<<<< HEAD
-
-        if (off >= NetworkBufferAddress4 &&
-            off + len <= NetworkBufferAddress4 + sizeof(s_network_buffer))
-        {
-          off -= NetworkBufferAddress4;
-        }
-        else if (off + len > sizeof(s_network_buffer))
-=======
         const u64 off_len = u64(off) + len;
 
         if (off >= NetworkBufferAddress4 &&
@@ -1077,7 +954,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           off -= NetworkBufferAddress4;
         }
         else if (off_len > sizeof(s_network_buffer))
->>>>>>> crediar/master
         {
           ERROR_LOG_FMT(AMMEDIABOARD_NET,
                         "GC-AM: recv(error) invalid destination or length: off={:08x}, len={}\n",
@@ -1101,15 +977,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const SOCKET fd = s_sockets[SocketCheck(s_media_buffer_32[2])];
         u32 off = s_media_buffer_32[3];
         auto len = std::min<u32>(s_media_buffer_32[4], sizeof(s_network_buffer));
-<<<<<<< HEAD
-
-        if (off >= NetworkBufferAddress3 &&
-            off + len <= NetworkBufferAddress3 + sizeof(s_network_buffer))
-        {
-          off -= NetworkBufferAddress3;
-        }
-        else if (off + len > sizeof(s_network_buffer))
-=======
         const u64 off_len = u64(off) + len;
 
         if (off >= NetworkBufferAddress3 &&
@@ -1118,7 +985,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           off -= NetworkBufferAddress3;
         }
         else if (off_len > sizeof(s_network_buffer))
->>>>>>> crediar/master
         {
           ERROR_LOG_FMT(AMMEDIABOARD_NET,
                         "GC-AM: send(error) unhandled destination or length: {:08x}, len={}", off,
@@ -1127,11 +993,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           len = 0;
         }
 
-<<<<<<< HEAD
-        const int ret = send(fd, reinterpret_cast<char*>(s_network_buffer + off), len, 0);
-=======
         const int ret = send(fd, reinterpret_cast<char*>(s_network_buffer + off), len, SEND_FLAGS);
->>>>>>> crediar/master
         const int err = WSAGetLastError();
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: send( {}({}), 0x{:08x}, {} ): {} {}\n", fd,
@@ -1176,15 +1038,9 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         fd_set* exceptfds = nullptr;
 
         timeval timeout = {};
-<<<<<<< HEAD
-        u8* timeout_src = nullptr;
-
-        fd_set fds;
-=======
         std::optional<u32> timeout_offset;
 
         fd_set fds{};
->>>>>>> crediar/master
         FD_ZERO(&fds);
         FD_SET(fd, &fds);
 
@@ -1199,54 +1055,33 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
             break;
           }
 
-<<<<<<< HEAD
-=======
           // TODO: Ensure host's fd_set is compatible with Triforce's
->>>>>>> crediar/master
           Common::BitCastPtr<fd_set>(s_network_command_buffer + fd_set_offset) = fds;
 
           if (s_media_buffer_32[3] != 0)
           {
             readfds = &fds;
-<<<<<<< HEAD
-            timeout_src = s_network_command_buffer + s_media_buffer_32[3] - NetworkCommandAddress2;
-=======
             timeout_offset = s_media_buffer_32[3] - NetworkCommandAddress2;
->>>>>>> crediar/master
           }
           else if (s_media_buffer_32[4] != 0)
           {
             writefds = &fds;
-<<<<<<< HEAD
-            timeout_src = s_network_command_buffer + s_media_buffer_32[4] - NetworkCommandAddress2;
-=======
             timeout_offset = s_media_buffer_32[4] - NetworkCommandAddress2;
->>>>>>> crediar/master
           }
           else if (s_media_buffer_32[5] != 0)
           {
             exceptfds = &fds;
-<<<<<<< HEAD
-            timeout_src = s_network_command_buffer + s_media_buffer_32[5] - NetworkCommandAddress2;
-=======
             timeout_offset = s_media_buffer_32[5] - NetworkCommandAddress2;
->>>>>>> crediar/master
           }
         }
 
         // Copy timeout if set
-<<<<<<< HEAD
-        if (timeout_src != nullptr)
-        {
-          std::memcpy(&timeout, timeout_src, sizeof(timeval));
-=======
         if (timeout_offset.has_value())
         {
           if (!NetworkCMDBufferCheck(*timeout_offset, sizeof(timeval)))
             break;
 
           std::memcpy(&timeout, s_network_command_buffer + *timeout_offset, sizeof(timeval));
->>>>>>> crediar/master
         }
 
         // BUG: The game sets timeout to two seconds
@@ -1257,11 +1092,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         }
 
         const int ret =
-<<<<<<< HEAD
-            select(fd + 1, readfds, writefds, exceptfds, timeout_src ? &timeout : nullptr);
-=======
             select(fd + 1, readfds, writefds, exceptfds, timeout_offset ? &timeout : nullptr);
->>>>>>> crediar/master
 
         const int err = WSAGetLastError();
 
@@ -1282,30 +1113,17 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const int level = static_cast<int>(s_media_buffer_32[3]);
         const int optname = static_cast<int>(s_media_buffer_32[4]);
         const int optlen = static_cast<int>(s_media_buffer_32[6]);
-<<<<<<< HEAD
-
-        if (!NetworkCMDBufferCheck(s_media_buffer_32[5] - NetworkCommandAddress2, optlen))
-=======
         const u32 optval_offset = s_media_buffer_32[5] - NetworkCommandAddress2;
 
         if (!NetworkCMDBufferCheck(optval_offset, optlen))
->>>>>>> crediar/master
         {
           break;
         }
 
-<<<<<<< HEAD
-        const char* optval = reinterpret_cast<char*>(s_network_command_buffer +
-                                                     s_media_buffer_32[5] - NetworkCommandAddress2);
-
-        const int ret = setsockopt(fd, level, optname, optval, optlen);
-
-=======
         const char* optval = reinterpret_cast<char*>(s_network_command_buffer + optval_offset);
 
         // TODO: Ensure parameters are compatible with host's setsockopt
         const int ret = setsockopt(fd, level, optname, optval, optlen);
->>>>>>> crediar/master
         const int err = WSAGetLastError();
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET,
@@ -1372,11 +1190,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
       {
         const u32 net_buffer_offset = s_media_buffer_32[2] - NetworkCommandAddress2;
 
-<<<<<<< HEAD
-        if (!NetworkCMDBufferCheck(net_buffer_offset, 15))
-=======
         if (!NetworkCMDBufferCheck(net_buffer_offset, MAX_IPV4_STRING_LENGTH))
->>>>>>> crediar/master
         {
           break;
         }
@@ -1385,11 +1199,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
             reinterpret_cast<char*>(s_network_command_buffer + net_buffer_offset);
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: modifyMyIPaddr({})\n",
-<<<<<<< HEAD
-                       fmt::string_view(ip_address, 15));
-=======
                        fmt::string_view(ip_address, MAX_IPV4_STRING_LENGTH));
->>>>>>> crediar/master
         break;
       }
       case AMMBCommand::GetLastError:
@@ -1470,12 +1280,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
     if (s_firmware_map)
     {
       // Firmware memory (2MB)
-<<<<<<< HEAD
-      if ((offset >= 0x00400000) && (offset <= 0x600000))
-      {
-        const u32 fwoffset = offset - 0x00400000;
-        memory.CopyFromEmu(s_firmware + fwoffset, address, length);
-=======
       if (offset >= 0x00400000 && offset <= 0x600000)
       {
         const u32 fw_offset = offset - 0x00400000;
@@ -1484,7 +1288,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: Invalid firmware write: offset={}, length={}",
                         fw_offset, length);
         }
->>>>>>> crediar/master
         return 0;
       }
     }
@@ -1747,15 +1550,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const SOCKET fd = s_sockets[SocketCheck(s_media_buffer_32[10])];
         u32 off = s_media_buffer_32[11];
         auto len = std::min<u32>(s_media_buffer_32[12], sizeof(s_network_buffer));
-<<<<<<< HEAD
-
-        if (off >= NetworkBufferAddress5 &&
-            off + len <= NetworkBufferAddress5 + sizeof(s_network_buffer))
-        {
-          off -= NetworkBufferAddress5;
-        }
-        else if (off + len > sizeof(s_network_buffer))
-=======
         const u64 off_len = u64(off) + len;
 
         if (off >= NetworkBufferAddress5 &&
@@ -1764,7 +1558,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           off -= NetworkBufferAddress5;
         }
         else if (off_len > sizeof(s_network_buffer))
->>>>>>> crediar/master
         {
           ERROR_LOG_FMT(AMMEDIABOARD_NET,
                         "GC-AM: recv(error) invalid destination or length: off={:08x}, len={}\n",
@@ -1788,15 +1581,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const SOCKET fd = s_sockets[SocketCheck(s_media_buffer_32[10])];
         u32 off = s_media_buffer_32[11];
         auto len = std::min<u32>(s_media_buffer_32[12], sizeof(s_network_buffer));
-<<<<<<< HEAD
-
-        if (off >= NetworkBufferAddress1 &&
-            off + len <= NetworkBufferAddress1 + sizeof(s_network_buffer))
-        {
-          off -= NetworkBufferAddress1;
-        }
-        else if (off + len > sizeof(s_network_buffer))
-=======
         const u64 off_len = u64(off) + len;
 
         if (off >= NetworkBufferAddress1 &&
@@ -1805,7 +1589,6 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           off -= NetworkBufferAddress1;
         }
         else if (off_len > sizeof(s_network_buffer))
->>>>>>> crediar/master
         {
           ERROR_LOG_FMT(AMMEDIABOARD_NET,
                         "GC-AM: send(error) unhandled destination or length: {:08x}, len={}", off,
@@ -1814,11 +1597,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           len = 0;
         }
 
-<<<<<<< HEAD
-        const int ret = send(fd, reinterpret_cast<char*>(s_network_buffer + off), len, 0);
-=======
         const int ret = send(fd, reinterpret_cast<char*>(s_network_buffer + off), len, SEND_FLAGS);
->>>>>>> crediar/master
         const int err = WSAGetLastError();
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: send( {}({}), 0x{:08x}, {} ): {} {}\n", fd,
@@ -1851,15 +1630,9 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         fd_set* exceptfds = nullptr;
 
         timeval timeout = {};
-<<<<<<< HEAD
-        u8* timeout_src = nullptr;
-
-        fd_set fds;
-=======
         std::optional<u32> timeout_offset;
 
         fd_set fds{};
->>>>>>> crediar/master
         FD_ZERO(&fds);
         FD_SET(fd, &fds);
 
@@ -1874,54 +1647,33 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
             break;
           }
 
-<<<<<<< HEAD
-=======
           // TODO: Ensure host's fd_set is compatible with Triforce's
->>>>>>> crediar/master
           Common::BitCastPtr<fd_set>(s_network_command_buffer + fd_set_offset) = fds;
 
           if (s_media_buffer_32[11] != 0)
           {
             readfds = &fds;
-<<<<<<< HEAD
-            timeout_src = s_network_command_buffer + s_media_buffer_32[11] - NetworkCommandAddress1;
-=======
             timeout_offset = s_media_buffer_32[11] - NetworkCommandAddress1;
->>>>>>> crediar/master
           }
           else if (s_media_buffer_32[12] != 0)
           {
             writefds = &fds;
-<<<<<<< HEAD
-            timeout_src = s_network_command_buffer + s_media_buffer_32[12] - NetworkCommandAddress1;
-=======
             timeout_offset = s_media_buffer_32[12] - NetworkCommandAddress1;
->>>>>>> crediar/master
           }
           else if (s_media_buffer_32[13] != 0)
           {
             exceptfds = &fds;
-<<<<<<< HEAD
-            timeout_src = s_network_command_buffer + s_media_buffer_32[13] - NetworkCommandAddress1;
-=======
             timeout_offset = s_media_buffer_32[13] - NetworkCommandAddress1;
->>>>>>> crediar/master
           }
         }
 
         // Copy timeout if set
-<<<<<<< HEAD
-        if (timeout_src != nullptr)
-        {
-          std::memcpy(&timeout, timeout_src, sizeof(timeval));
-=======
         if (timeout_offset.has_value())
         {
           if (!NetworkCMDBufferCheck(*timeout_offset, sizeof(timeval)))
             break;
 
           std::memcpy(&timeout, s_network_command_buffer + *timeout_offset, sizeof(timeval));
->>>>>>> crediar/master
         }
 
         // BUG?: F-Zero AX Monster calls select with a two second timeout
@@ -1933,11 +1685,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         }
 
         const int ret =
-<<<<<<< HEAD
-            select(fd + 1, readfds, writefds, exceptfds, timeout_src ? &timeout : nullptr);
-=======
             select(fd + 1, readfds, writefds, exceptfds, timeout_offset ? &timeout : nullptr);
->>>>>>> crediar/master
         const int err = WSAGetLastError();
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET,
@@ -1955,27 +1703,16 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         const int level = static_cast<int>(s_media_buffer_32[11]);
         const int optname = static_cast<int>(s_media_buffer_32[12]);
         const int optlen = static_cast<int>(s_media_buffer_32[14]);
-<<<<<<< HEAD
-
-        if (!NetworkCMDBufferCheck(s_media_buffer_32[13] - NetworkCommandAddress1, optlen))
-=======
         const u32 optval_offset = s_media_buffer_32[13] - NetworkCommandAddress1;
 
         if (!NetworkCMDBufferCheck(optval_offset, optlen))
->>>>>>> crediar/master
         {
           break;
         }
 
-<<<<<<< HEAD
-        const char* optval = reinterpret_cast<char*>(
-            s_network_command_buffer + s_media_buffer_32[13] - NetworkCommandAddress1);
-
-=======
         const char* optval = reinterpret_cast<char*>(s_network_command_buffer + optval_offset);
 
         // TODO: Ensure parameters are compatible with host's setsockopt
->>>>>>> crediar/master
         const int ret = setsockopt(fd, level, optname, optval, optlen);
         const int err = WSAGetLastError();
 
@@ -1991,11 +1728,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
       {
         const u32 net_buffer_offset = s_media_buffer_32[10] - NetworkCommandAddress1;
 
-<<<<<<< HEAD
-        if (!NetworkCMDBufferCheck(net_buffer_offset, 15))
-=======
         if (!NetworkCMDBufferCheck(net_buffer_offset, MAX_IPV4_STRING_LENGTH))
->>>>>>> crediar/master
         {
           break;
         }
@@ -2004,11 +1737,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
             reinterpret_cast<char*>(s_network_command_buffer + net_buffer_offset);
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: modifyMyIPaddr({})\n",
-<<<<<<< HEAD
-                       fmt::string_view(ip_address, 15));
-=======
                        fmt::string_view(ip_address, MAX_IPV4_STRING_LENGTH));
->>>>>>> crediar/master
       }
       break;
       // Empty reply
@@ -2020,13 +1749,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         break;
       case AMMBCommand::SetupLink:
       {
-<<<<<<< HEAD
-        sockaddr_in addra;
-        sockaddr_in addrb;
-=======
         sockaddr_in addra{};
         sockaddr_in addrb{};
->>>>>>> crediar/master
 
         addra.sin_addr.s_addr = s_media_buffer_32[12];
         addrb.sin_addr.s_addr = s_media_buffer_32[13];
@@ -2068,11 +1792,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           break;
         }
 
-<<<<<<< HEAD
-        const u8* data = s_network_buffer + off + addr - NetworkBufferAddress2;
-=======
         const u8* data = s_network_buffer + (off + addr - NetworkBufferAddress2);
->>>>>>> crediar/master
 
         for (u32 i = 0; i < 0x20; i += 0x10)
         {
@@ -2177,11 +1897,7 @@ void Shutdown()
   s_dimm_disc.clear();
 
   // Close all sockets
-<<<<<<< HEAD
-  for (u32 i = 1; i < 64; ++i)
-=======
   for (u32 i = 1; i < std::size(s_sockets); ++i)
->>>>>>> crediar/master
   {
     if (s_sockets[i] != SOCKET_ERROR)
     {

@@ -3,21 +3,12 @@
 
 #include "Core/HW/EXI/EXI_DeviceBaseboard.h"
 
-<<<<<<< HEAD
 
 #include <numeric>
 #include <string>
 #include <fmt/format.h>
 #include "Common/Buffer.h"
 #include "Common/ChunkFile.h"
-=======
-#include <numeric>
-#include <string>
-
-#include <fmt/format.h>
-
-#include "Common/Buffer.h"
->>>>>>> crediar/master
 #include "Common/CommonTypes.h"
 #include "Common/FileUtil.h"
 #include "Common/IOFile.h"
@@ -89,16 +80,10 @@ CEXIBaseboard::CEXIBaseboard(Core::System& system) : IEXIDevice(system)
   if (AMMediaboard::GetGameType() == VirtuaStriker4 ||
       AMMediaboard::GetGameType() == GekitouProYakyuu)
   {
-<<<<<<< HEAD
-    if (m_backup.GetSize())
-    {
-      Common::UniqueBuffer<u8> data(m_backup.GetSize());
-=======
     const u64 backup_size = m_backup.GetSize();
     if (backup_size >= 0x20C + 0x1F4)
     {
       Common::UniqueBuffer<u8> data(backup_size);
->>>>>>> crediar/master
       m_backup.ReadBytes(data.data(), data.size());
 
       // Set FIRM version
@@ -149,13 +134,6 @@ void CEXIBaseboard::DMAWrite(u32 addr, u32 size)
 {
   const auto& system = Core::System::GetInstance();
   const auto& memory = system.GetMemory();
-<<<<<<< HEAD
-
-  NOTICE_LOG_FMT(SP1, "AM-BB: COMMAND: Backup DMA Write: {:08x} {:x}", addr, size);
-
-  m_backup.Seek(m_backup_offset, File::SeekOrigin::Begin);
-  m_backup.WriteBytes(memory.GetSpanForAddress(addr).data(), size);
-=======
   auto span = memory.GetSpanForAddress(addr);
 
   if (span.size() < size)
@@ -168,7 +146,6 @@ void CEXIBaseboard::DMAWrite(u32 addr, u32 size)
 
   m_backup.Seek(m_backup_offset, File::SeekOrigin::Begin);
   m_backup.WriteBytes(span.data(), size);
->>>>>>> crediar/master
   m_backup.Flush();
 }
 
@@ -176,13 +153,6 @@ void CEXIBaseboard::DMARead(u32 addr, u32 size)
 {
   const auto& system = Core::System::GetInstance();
   const auto& memory = system.GetMemory();
-<<<<<<< HEAD
-
-  NOTICE_LOG_FMT(SP1, "AM-BB: COMMAND: Backup DMA Read: {:08x} {:x}", addr, size);
-
-  m_backup.Seek(m_backup_offset, File::SeekOrigin::Begin);
-  m_backup.ReadBytes(memory.GetSpanForAddress(addr).data(), size);
-=======
   auto span = memory.GetSpanForAddress(addr);
 
   if (span.size() < size)
@@ -195,7 +165,6 @@ void CEXIBaseboard::DMARead(u32 addr, u32 size)
 
   m_backup.Seek(m_backup_offset, File::SeekOrigin::Begin);
   m_backup.ReadBytes(span.data(), size);
->>>>>>> crediar/master
 }
 
 void CEXIBaseboard::TransferByte(u8& byte)
