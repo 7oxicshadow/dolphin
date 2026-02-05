@@ -546,7 +546,7 @@ void MappingWindow::PopulateProfileSelection()
   m_profiles_combo->clear();
 
   const std::string profiles_path = m_config->GetUserProfileDirectoryPath();
-  for (const auto& filename : Common::DoFileSearch({profiles_path}, {".ini"}))
+  for (const auto& filename : Common::DoFileSearch(profiles_path, ".ini"))
   {
     std::string basename;
     SplitPath(filename, nullptr, &basename, nullptr);
@@ -556,8 +556,7 @@ void MappingWindow::PopulateProfileSelection()
 
   m_profiles_combo->insertSeparator(m_profiles_combo->count());
 
-  for (const auto& filename :
-       Common::DoFileSearch({m_config->GetSysProfileDirectoryPath()}, {".ini"}))
+  for (const auto& filename : Common::DoFileSearch(m_config->GetSysProfileDirectoryPath(), ".ini"))
   {
     std::string basename;
     SplitPath(filename, nullptr, &basename, nullptr);

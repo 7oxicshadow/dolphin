@@ -122,9 +122,7 @@ public:
   void mcrf(UGeckoInstruction inst);
   void mcrxr(UGeckoInstruction inst);
   void mfsr(UGeckoInstruction inst);
-  void mtsr(UGeckoInstruction inst);
   void mfsrin(UGeckoInstruction inst);
-  void mtsrin(UGeckoInstruction inst);
   void twx(UGeckoInstruction inst);
   void mfspr(UGeckoInstruction inst);
   void mftb(UGeckoInstruction inst);
@@ -324,6 +322,8 @@ protected:
   void GenerateConvertDoubleToSingle();
   void GenerateConvertSingleToDouble();
   void GenerateFPRF(bool single);
+  void GenerateFmaddsEft();
+  void GeneratePsMaddEft();
   void GenerateQuantizedLoads();
   void GenerateQuantizedStores();
 

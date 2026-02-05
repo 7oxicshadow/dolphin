@@ -7,7 +7,6 @@
 
 #include "VideoCommon/BPMemory.h"
 #include "VideoCommon/DriverDetails.h"
-#include "VideoCommon/NativeVertexFormat.h"
 #include "VideoCommon/PixelShaderGen.h"
 #include "VideoCommon/ShaderGenCommon.h"
 #include "VideoCommon/UberShaderCommon.h"
@@ -399,9 +398,7 @@ ShaderCode GenPixelShader(APIType api_type, const ShaderHostConfig& host_config,
               "    D = D << scale;\n"
               "  }}\n"
               "\n"
-              "  // TODO: Is this rounding bias still added when the scale is divide by 2?  "
-              "Currently we "
-              "do not apply it.\n"
+              "  // This rounding bias is not added when the scale is divide by 2\n"
               "  if (scale != 3u)\n"
               "    lerp = lerp + (op ? 127 : 128);\n"
               "\n"

@@ -13,7 +13,6 @@
 
 #include "Core/Config/MainSettings.h"
 
-#include "InputCommon/ControllerEmu/Setting/NumericSetting.h"
 #include "InputCommon/InputConfig.h"
 
 GCPadEmu::GCPadEmu(MappingWindow* window) : MappingWidget(window)
