@@ -4,8 +4,14 @@
 #pragma once
 
 #include <array>
+#include <optional>
+#include <string_view>
+#include <utility>
 
+#include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
+
+#include "DiscIO/Volume.h"
 
 enum GameType
 {
@@ -226,12 +232,15 @@ enum SocketStatusCodes
 
 void Init();
 void FirmwareMap(bool on);
-u8* InitDIMM(u32 size);
+void InitDIMM(const DiscIO::Volume& volume);
 void InitKeys(u32 key_a, u32 key_b, u32 key_c);
 u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u32 length);
 u32 GetGameType();
 u32 GetMediaType();
 bool GetTestMenu();
 void Shutdown();
+void DoState(PointerWrap& p);
+
+std::optional<std::pair<std::string_view, std::string_view>> ParseIPOverride(std::string_view str);
 
 };  // namespace AMMediaboard

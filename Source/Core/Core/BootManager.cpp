@@ -118,7 +118,7 @@ bool BootCore(Core::System& system, std::unique_ptr<BootParameters> boot,
         case DiscIO::Region::NTSC_K:
           Config::SetCurrent(Config::SYSCONF_COUNTRY, 0x88);  // South Korea
           break;
-        case DiscIO::Region::Unknown:
+        default:
           break;
         }
       }
@@ -133,6 +133,21 @@ bool BootCore(Core::System& system, std::unique_ptr<BootParameters> boot,
   // Disable loading time emulation for Riivolution-patched games until we have proper emulation.
   if (!boot->riivolution_patches.empty())
     Config::SetCurrent(Config::MAIN_FAST_DISC_SPEED, true);
+
+  if (system.IsTriforce())
+  {
+    // Attach Triforce Baseboard hardware if not overridden in any layer.
+    // Users may set these in their GameConfig if they want them not automatically attached.
+    if (GetActiveLayerForConfig(Config::MAIN_SERIAL_PORT_1) == Config::LayerType::Base)
+    {
+      Config::SetCurrent(Config::MAIN_SERIAL_PORT_1, ExpansionInterface::EXIDeviceType::Baseboard);
+    }
+    if (GetActiveLayerForConfig(Config::GetInfoForSIDevice(0)) == Config::LayerType::Base)
+    {
+      Config::SetCurrent(Config::GetInfoForSIDevice(0),
+                         SerialInterface::SIDevices::SIDEVICE_AM_BASEBOARD);
+    }
+  }
 
   system.Initialize();
 

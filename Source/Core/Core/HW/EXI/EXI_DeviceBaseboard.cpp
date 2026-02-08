@@ -3,9 +3,9 @@
 
 #include "Core/HW/EXI/EXI_DeviceBaseboard.h"
 
-
 #include <numeric>
 #include <string>
+
 #include <fmt/format.h>
 #include "Common/Buffer.h"
 #include "Common/ChunkFile.h"

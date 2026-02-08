@@ -50,36 +50,6 @@ std::string VolumeDisc::GetGameID(const Partition& partition) const
     const std::string maker_id{GetMakerID()};
     memcpy(id + 4, maker_id.c_str(), std::min<std::size_t>(maker_id.size(), 2));
 
-    return DecodeString(id);
-  }
-
-  if (GetVolumeType() == Platform::Triforce)
-  {
-    // Triforce games have their Game ID stored in the boot.id file
-    const BootID* boot_id = static_cast<const VolumeGC*>(this)->GetTriforceBootID();
-
-    // Construct game ID from the BTID
-    id[0] = 'G';
-
-    memcpy(id + 1, boot_id->game_id.data() + 2, 2);
-
-    switch (GetCountry())
-    {
-    default:
-    case Country::Japan:
-      id[3] = 'J';
-      break;
-    case Country::Taiwan:
-      id[3] = 'W';
-      break;
-    case Country::USA:
-      id[3] = 'E';
-      break;
-    case Country::Europe:
-      id[3] = 'P';
-      break;
-    }
-
     memcpy(id + 4, GetMakerID().c_str(), 2);
 
     return DecodeString(id);
