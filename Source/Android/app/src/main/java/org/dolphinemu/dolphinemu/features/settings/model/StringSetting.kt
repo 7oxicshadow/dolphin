@@ -69,17 +69,11 @@ enum class StringSetting(
         ""
     ),
     MAIN_WFS_PATH(Settings.FILE_DOLPHIN, Settings.SECTION_INI_GENERAL, "WFSPath", ""),
-    MAIN_TRIFORCE_BIND_IP(
+    MAIN_TRIFORCE_IP_REDIRECTIONS(
         Settings.FILE_DOLPHIN,
         Settings.SECTION_INI_CORE,
-        "TriforceBindIP",
-        "0.0.0.0"
-    ),
-    MAIN_TRIFORCE_IP_OVERRIDES(
-        Settings.FILE_DOLPHIN,
-        Settings.SECTION_INI_CORE,
-        "TriforceIPOverrides",
-        "192.168.11.111=127.0.0.1,192.168.13.1=127.0.0.1,192.168.29.104-108=127.0.0.1,192.168.150.16=127.0.0.1"
+        "TriforceIPRedirections",
+        "0.0.0.0/0=127.0.0.1"
     ),
     GFX_ENHANCE_POST_SHADER(
         Settings.FILE_GFX,

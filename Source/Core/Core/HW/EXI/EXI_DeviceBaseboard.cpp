@@ -7,25 +7,19 @@
 #include <string>
 
 #include <fmt/format.h>
+
+#include "Common/BitUtils.h"
 #include "Common/Buffer.h"
-#include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
 #include "Common/FileUtil.h"
 #include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 
-#include "Core/Boot/Boot.h"
-#include "Core/BootManager.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/DVD/AMMediaboard.h"
-#include "Core/HW/DVD/DVDInterface.h"
 #include "Core/HW/EXI/EXI.h"
-#include "Core/HW/EXI/EXI_Device.h"
-#include "Core/HW/MMIO.h"
 #include "Core/HW/Memmap.h"
-#include "Core/Movie.h"
-#include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
 
 static bool s_interrupt_set = false;
@@ -77,8 +71,8 @@ CEXIBaseboard::CEXIBaseboard(Core::System& system) : IEXIDevice(system)
 
   // Virtua Striker 4 and Gekitou Pro Yakyuu need a higher FIRM version
   // Which is read from the backup data?!
-  if (AMMediaboard::GetGameType() == VirtuaStriker4 ||
-      AMMediaboard::GetGameType() == GekitouProYakyuu)
+  if (AMMediaboard::GetGameType() == AMMediaboard::VirtuaStriker4 ||
+      AMMediaboard::GetGameType() == AMMediaboard::GekitouProYakyuu)
   {
     const u64 backup_size = m_backup.GetSize();
     if (backup_size >= 0x20C + 0x1F4)

@@ -1281,16 +1281,8 @@ class SettingsFragmentPresenter(
             sl.add(
                 InputStringSetting(
                     context,
-                    StringSetting.MAIN_TRIFORCE_BIND_IP,
-                    R.string.triforce_bind_ip,
-                    0
-                )
-            )
-            sl.add(
-                InputStringSetting(
-                    context,
-                    StringSetting.MAIN_TRIFORCE_IP_OVERRIDES,
-                    R.string.triforce_ip_overrides,
+                    StringSetting.MAIN_TRIFORCE_IP_REDIRECTIONS,
+                    R.string.triforce_ip_redirections,
                     0
                 )
             )

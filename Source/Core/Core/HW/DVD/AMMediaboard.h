@@ -5,13 +5,23 @@
 
 #include <array>
 #include <optional>
+#include <span>
 #include <string_view>
-#include <utility>
 
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
+#include "Common/Network.h"
 
 #include "DiscIO/Volume.h"
+
+namespace Core
+{
+class CPUThreadGuard;
+class System;
+}  // namespace Core
+
+namespace AMMediaboard
+{
 
 enum GameType
 {
@@ -58,23 +68,15 @@ enum InquiryType
   Version2 = 0x29484100,
 };
 
-namespace Core
-{
-class CPUThreadGuard;
-class System;
-}  // namespace Core
-
-struct MediaBoardRanges
+struct MediaBoardRange
 {
   u32 start;
   u32 end;
   u8* buffer;
-  size_t buffer_size;
-  u32 base_offset;
-};
+  std::size_t buffer_size;
 
-namespace AMMediaboard
-{
+  MediaBoardRange(u32 start_, u32 size_, std::span<u8> buffer_);
+};
 
 enum class AMMBDICommand : u16
 {
@@ -230,6 +232,8 @@ enum SocketStatusCodes
   SSC_SUCCESS = 70,
 };
 
+static constexpr std::size_t SOCKET_FD_MAX = 64;
+
 void Init();
 void FirmwareMap(bool on);
 void InitDIMM(const DiscIO::Volume& volume);
@@ -241,6 +245,30 @@ bool GetTestMenu();
 void Shutdown();
 void DoState(PointerWrap& p);
 
-std::optional<std::pair<std::string_view, std::string_view>> ParseIPOverride(std::string_view str);
+struct ParsedIPRedirection
+{
+  std::string_view original;
+  std::string_view replacement;
+  std::string_view description;
+};
+
+std::optional<ParsedIPRedirection> ParseIPRedirection(std::string_view str);
+
+struct IPRedirection
+{
+  Common::IPv4PortRange original;
+  Common::IPv4PortRange replacement;
+
+  // Caller should check if it matches first!
+  Common::IPv4Port Apply(Common::IPv4Port subject) const;
+  Common::IPv4Port Reverse(Common::IPv4Port subject) const;
+  std::string ToString() const;
+};
+
+using IPRedirections = std::vector<IPRedirection>;
+
+IPRedirections GetIPRedirections();
+
+s32 DebuggerGetSocket(u32 triforce_fd);
 
 };  // namespace AMMediaboard

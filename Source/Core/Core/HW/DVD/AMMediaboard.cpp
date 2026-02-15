@@ -5,33 +5,25 @@
 
 #include <algorithm>
 #include <bit>
-#include <ranges>
+#include <random>
 #include <string>
 #include <unordered_map>
 
 #include <fmt/format.h>
 
+#include "Common/BitUtils.h"
 #include "Common/CommonTypes.h"
 #include "Common/FileUtil.h"
 #include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
-#include "Common/Network.h"
 #include "Common/ScopeGuard.h"
 
-#include "Core/Boot/Boot.h"
-#include "Core/BootManager.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HLE/HLE.h"
-#include "Core/HW/DVD/DVDInterface.h"
-#include "Core/HW/DVD/DVDThread.h"
-#include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_DeviceBaseboard.h"
-#include "Core/HW/MMIO.h"
 #include "Core/HW/Memmap.h"
-#include "Core/HW/SI/SI.h"
-#include "Core/HW/SI/SI_Device.h"
 #include "Core/IOS/Network/Socket.h"
 #include "Core/Movie.h"
 #include "Core/System.h"
@@ -78,12 +70,17 @@ static int WSAGetLastError()
 namespace AMMediaboard
 {
 
+MediaBoardRange::MediaBoardRange(u32 start_, u32 size_, std::span<u8> buffer_)
+    : start{start_}, end{start_ + size_}, buffer{buffer_.data()}, buffer_size{buffer_.size()}
+{
+}
+
 using Common::SEND_FLAGS;
 
-enum class GuestSocket : SOCKET
+enum class GuestSocket : s32
 {
 };
-static constexpr auto INVALID_GUEST_SOCKET = GuestSocket(INVALID_SOCKET);
+static constexpr auto INVALID_GUEST_SOCKET = GuestSocket(-1);
 
 struct TimeVal
 {
@@ -117,7 +114,10 @@ static_assert(sizeof(GuestFdSet) == 32);
 // This seems to be based on VxWorks sockaddr_in.
 struct GuestSocketAddress
 {
-  u8 struct_size;  // Seemingly always zero or random values ? Game bug ?
+  // Seemingly always zero or random values ? Game bug ?
+  // This is the struct size in VxWorks.
+  u8 unknown_value;
+
   u8 ip_family;
   u16 port;  // Network byte order.
   Common::IPAddress ip_address;
@@ -142,15 +142,21 @@ static File::IOFile s_dimm;
 
 static std::unique_ptr<DiscIO::BlobReader> s_dimm_disc;
 
-static u8 s_firmware[2 * 1024 * 1024];
-static u32 s_media_buffer_32[192];
-static u8* const s_media_buffer = reinterpret_cast<u8*>(s_media_buffer_32);
-static u8 s_network_command_buffer[0x4FFE00];
-static u8 s_network_buffer[512 * 1024];
-static u8 s_allnet_buffer[4096];
-static u8 s_allnet_settings[0x8500];
+static std::array<u8, 0x200000> s_firmware;
+static std::array<u32, 0xc0> s_media_buffer_32;
+static u8* const s_media_buffer = reinterpret_cast<u8*>(s_media_buffer_32.data());
+static std::array<u8, 0x4ffe00> s_network_command_buffer;
+static std::array<u8, 0x80000> s_network_buffer;
+static std::array<u8, 0x1000> s_allnet_buffer;
+static std::array<u8, 0x8500> s_allnet_settings;
 
-static constexpr size_t MAX_IPV4_STRING_LENGTH = 15;
+static Common::IPAddress s_game_modified_ip_address;
+
+// Fake loading the game to have a chance to enter test mode
+static u32 s_board_status = LoadingGameProgram;
+static u32 s_load_progress = 80;
+
+static constexpr std::size_t MAX_IPV4_STRING_LENGTH = 15;
 
 constexpr char s_allnet_reply[] = {
     "uri=http://"
@@ -158,60 +164,53 @@ constexpr char s_allnet_reply[] = {
     "second=12&place_id=1234&setting=0x123&region0=jap&region_name0=japan&region_name1=usa&region_"
     "name2=asia&region_name3=export&end"};
 
-static const MediaBoardRanges s_mediaboard_ranges[] = {
-    {DIMMCommandVersion1, 0x1F900040, s_media_buffer, sizeof(s_media_buffer_32),
-     DIMMCommandVersion1},
-    {DIMMCommandVersion2, 0x84000060, s_media_buffer, sizeof(s_media_buffer_32),
-     DIMMCommandVersion2},
-    {DIMMCommandVersion2_2, 0x89000220, s_media_buffer, sizeof(s_media_buffer_32),
-     DIMMCommandVersion2_2},
-    {NetworkCommandAddress1, 0x1F801240, s_network_command_buffer, sizeof(s_network_command_buffer),
-     NetworkCommandAddress1},
-    {NetworkCommandAddress2, 0x89060200, s_network_command_buffer, sizeof(s_network_command_buffer),
-     NetworkCommandAddress2},
-    {NetworkBufferAddress1, 0x1FA10000, s_network_buffer, sizeof(s_network_buffer),
-     NetworkBufferAddress1},
-    {NetworkBufferAddress2, 0x1FD10000, s_network_buffer, sizeof(s_network_buffer),
-     NetworkBufferAddress2},
-    {NetworkBufferAddress3, 0x89120000, s_network_buffer, sizeof(s_network_buffer),
-     NetworkBufferAddress3},
-    {NetworkBufferAddress4, 0x89240000, s_network_buffer, sizeof(s_network_buffer),
-     NetworkBufferAddress4},
-    {NetworkBufferAddress5, 0x1FB10000, s_network_buffer, sizeof(s_network_buffer),
-     NetworkBufferAddress5},
-    {AllNetSettings, 0x1F000000, s_allnet_settings, sizeof(s_allnet_settings), AllNetSettings},
-    {AllNetBuffer, 0x89011000, s_allnet_buffer, sizeof(s_allnet_buffer), AllNetBuffer},
+static const MediaBoardRange s_mediaboard_ranges[] = {
+    {DIMMCommandVersion1, 0x40, Common::AsWritableU8Span(s_media_buffer_32)},
+    {DIMMCommandVersion2, 0x60, Common::AsWritableU8Span(s_media_buffer_32)},
+    {DIMMCommandVersion2_2, 0x220, Common::AsWritableU8Span(s_media_buffer_32)},
+    {NetworkCommandAddress1, 0x1040, s_network_command_buffer},
+    {NetworkCommandAddress2, 0x20000, s_network_command_buffer},
+    {NetworkBufferAddress1, 0x10000, s_network_buffer},
+    {NetworkBufferAddress2, 0x10000, s_network_buffer},
+    {NetworkBufferAddress3, 0x50000, s_network_buffer},
+    {NetworkBufferAddress4, 0xc0000, s_network_buffer},
+    {NetworkBufferAddress5, 0x10000, s_network_buffer},
+    {AllNetSettings, 0x8000, s_allnet_settings},
+    {AllNetBuffer, 0x1000, s_allnet_buffer},
 };
 
-static const std::unordered_map<u16, GameType> s_game_map = {{0x4747, FZeroAX},
-                                                             {0x4841, FZeroAXMonster},
-                                                             {0x4B50, MarioKartGP},
-                                                             {0x4B5A, MarioKartGP},
-                                                             {0x4E4A, MarioKartGP2},
-                                                             {0x4E4C, MarioKartGP2},
-                                                             {0x454A, VirtuaStriker3},
-                                                             {0x4559, VirtuaStriker3},
-                                                             {0x4C4A, VirtuaStriker4_2006},
-                                                             {0x4C4B, VirtuaStriker4_2006},
-                                                             {0x4C4C, VirtuaStriker4_2006},
-                                                             {0x484A, VirtuaStriker4},
-                                                             {0x484E, VirtuaStriker4},
-                                                             {0x485A, VirtuaStriker4},
-                                                             {0x4A41, VirtuaStriker4},
-                                                             {0x4A4A, VirtuaStriker4},
-                                                             {0x4658, KeyOfAvalon},
-                                                             {0x4A4E, KeyOfAvalon},
-                                                             {0x4758, GekitouProYakyuu},
-                                                             {0x5342, VirtuaStriker3},
-                                                             {0x3132, VirtuaStriker3},
-                                                             {0x454C, VirtuaStriker3},
-                                                             {0x3030, FirmwareUpdate}};
+static const std::unordered_map<u16, GameType> s_game_map = {
+    {0x4747, FZeroAX},
+    {0x4841, FZeroAXMonster},
+    {0x4B50, MarioKartGP},
+    {0x4B5A, MarioKartGP},
+    {0x4E4A, MarioKartGP2},
+    {0x4E4C, MarioKartGP2},
+    {0x454A, VirtuaStriker3},
+    {0x4559, VirtuaStriker3},
+    {0x4C4A, VirtuaStriker4_2006},
+    {0x4C4B, VirtuaStriker4_2006},
+    {0x4C4C, VirtuaStriker4_2006},
+    {0x484A, VirtuaStriker4},
+    {0x484E, VirtuaStriker4},
+    {0x485A, VirtuaStriker4},
+    {0x4A41, VirtuaStriker4},
+    {0x4A4A, VirtuaStriker4},
+    {0x4658, KeyOfAvalon},
+    {0x4A4E, KeyOfAvalon},
+    {0x4758, GekitouProYakyuu},
+    {0x5342, VirtuaStriker3},
+    {0x3132, VirtuaStriker3},
+    {0x454C, VirtuaStriker3},
+    {0x3030, FirmwareUpdate},
+};
+
 // Sockets FDs are required to go from 0 to 63.
 // Games use the FD as indexes so we have to workaround it.
 
-static SOCKET s_sockets[64];
+static std::array<SOCKET, SOCKET_FD_MAX> s_sockets;
 
-// FYI: Changing this to 0 seems to subtly break things?
+// TODO: Verify this.
 static constexpr u32 FIRST_VALID_FD = 1;
 
 static GuestSocket GetAvailableGuestSocket()
@@ -429,13 +428,18 @@ static File::IOFile OpenOrCreateFile(const std::string& filename)
 
 void Init()
 {
-  std::ranges::fill(s_media_buffer_32, 0);
-  std::ranges::fill(s_network_buffer, 0);
-  std::ranges::fill(s_network_command_buffer, 0);
-  std::ranges::fill(s_firmware, -1);
-  std::ranges::fill(s_sockets, SOCKET_ERROR);
-  std::ranges::fill(s_allnet_buffer, 0);
-  std::ranges::fill(s_allnet_settings, 0);
+  s_media_buffer_32.fill(0);
+  s_network_buffer.fill(0);
+  s_network_command_buffer.fill(0);
+  s_firmware.fill(-1);
+  s_sockets.fill(SOCKET_ERROR);
+  s_allnet_buffer.fill(0);
+  s_allnet_settings.fill(0);
+
+  s_game_modified_ip_address = {};
+
+  s_board_status = LoadingGameProgram;
+  s_load_progress = 80;
 
   s_firmware_map = false;
   s_test_menu = false;
@@ -483,7 +487,7 @@ void Init()
   }
 
   const u64 length = std::min<u64>(sega_boot.GetSize(), sizeof(s_firmware));
-  sega_boot.ReadBytes(s_firmware, length);
+  sega_boot.ReadBytes(s_firmware.data(), length);
 
   s_test_menu = true;
 }
@@ -503,136 +507,146 @@ static int PlatformPoll(std::span<WSAPOLLFD> pfds, std::chrono::milliseconds tim
 #endif
 }
 
-static GuestSocket NetDIMMAccept(GuestSocket guest_socket, sockaddr* addr, socklen_t* len)
+std::optional<ParsedIPRedirection> ParseIPRedirection(std::string_view str)
 {
-  const auto host_socket = GetHostSocket(guest_socket);
-  WSAPOLLFD pfds[1]{{.fd = host_socket, .events = POLLIN}};
-
-  // FYI: Currently using a 0ms timeout to make accept calls always non-blocking.
-  constexpr auto timeout = std::chrono::milliseconds{0};
-
-  const int result = PlatformPoll(pfds, timeout);
-
-  if (result > 0 && (pfds[0].revents & POLLIN) != 0)
-  {
-    const auto client_sock = accept_(host_socket, addr, len);
-    if (client_sock == INVALID_GUEST_SOCKET)
-    {
-      ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: accept() failed in NetDIMMAccept ({})",
-                    Common::StrNetworkError());
-      s_last_error = SOCKET_ERROR;
-      return INVALID_GUEST_SOCKET;
-    }
-    s_last_error = SSC_SUCCESS;
-    return client_sock;
-  }
-
-  if (result == 0)
-  {
-    // Timeout
-    s_last_error = SSC_EWOULDBLOCK;
-  }
-  else
-  {
-    ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: poll() failed in NetDIMMAccept ({})",
-                  Common::StrNetworkError());
-    s_last_error = SOCKET_ERROR;
-  }
-  return INVALID_GUEST_SOCKET;
-}
-
-std::optional<std::pair<std::string_view, std::string_view>> ParseIPOverride(std::string_view str)
-{
-  // Ignore everything after a $. Future proofing to allow for a comment/description string.
-  const auto ip_pair_str = std::string_view{str.begin(), std::ranges::find(str, '$')};
+  // Everything after a space is the description.
+  const auto ip_pair_str = std::string_view{str.begin(), std::ranges::find(str, ' ')};
 
   const auto parts = SplitStringIntoArray<2>(ip_pair_str, '=');
-  if (parts.has_value())
-    return std::make_pair((*parts)[0], (*parts)[1]);
+  if (!parts.has_value())
+    return std::nullopt;
 
-  return std::nullopt;
+  const bool have_description = ip_pair_str.size() != str.size();
+
+  return ParsedIPRedirection{
+      .original = (*parts)[0],
+      .replacement = (*parts)[1],
+      .description = have_description ? str.substr(ip_pair_str.size() + 1) : std::string_view{},
+  };
 }
 
-struct IPAddressOverride
+// Caller should check if it matches first!
+Common::IPv4Port IPRedirection::Apply(Common::IPv4Port subject) const
 {
-  Common::IPv4PortRange match;
-  Common::IPv4PortRange replacement;
+  // This logic could probably be better.
+  // Ranges of different sizes will be weird in general.
 
-  // Caller should check if it matches first!
-  Common::IPv4Port ApplyOverride(Common::IPv4Port subject) const
+  const auto replacement_first_ip_u32 = replacement.first.GetIPAddressValue();
+  const auto ip_count = 1u + u64(replacement.last.GetIPAddressValue()) - replacement_first_ip_u32;
+  const auto result_ip =
+      u32(replacement_first_ip_u32 +
+          ((subject.GetIPAddressValue() - original.first.GetIPAddressValue()) % ip_count));
+
+  subject.ip_address = std::bit_cast<Common::IPAddress>(Common::BigEndianValue{result_ip});
+
+  const auto replacement_first_port_u16 = replacement.first.GetPortValue();
+  const auto port_count = 1u + u32(replacement.last.GetPortValue()) - replacement_first_port_u16;
+
+  // If the replacement includes all ports then we don't alter the port.
+  // This allows "10.0.0.1:80-88=10.0.0.2" to have the expected behavior.
+  if (port_count != 65536u)
   {
-    const auto replacement_first_ip_u32 = replacement.first.GetIPAddressValue();
-    const auto ip_count = 1u + u64(replacement.last.GetIPAddressValue()) - replacement_first_ip_u32;
-    const auto result_ip =
-        u32(replacement_first_ip_u32 +
-            ((subject.GetIPAddressValue() - match.first.GetIPAddressValue()) % ip_count));
-
-    Common::IPv4Port result{
-        .ip_address = std::bit_cast<Common::IPAddress>(Common::BigEndianValue(result_ip)),
-    };
-
-    const auto replacement_first_port_u16 = replacement.first.GetPortValue();
-    const auto port_count = 1u + u32(replacement.last.GetPortValue()) - replacement_first_port_u16;
-
-    if (port_count == 65536)
-    {
-      // If the replacement includes all ports then don't alter the port.
-      // This allows "1.1.1.1:80=2.2.2.2" to do the obvious thing.
-      // This logic could probably be better.
-      // Ranges of different sizes will be weird in general.
-
-      result.port = subject.port;
-    }
-    else
-    {
-      const auto result_port =
-          u16(replacement_first_port_u16 +
-              ((subject.GetPortValue() - match.first.GetPortValue()) % port_count));
-      result.port = std::bit_cast<u16>(Common::BigEndianValue(result_port));
-    }
-
-    return result;
+    const auto result_port_u16 =
+        u16(replacement_first_port_u16 +
+            ((subject.GetPortValue() - original.first.GetPortValue()) % port_count));
+    subject.port = std::bit_cast<u16>(Common::BigEndianValue{result_port_u16});
   }
-};
 
-using IPOverrides = std::vector<IPAddressOverride>;
-static IPOverrides GetIPOverrides()
+  return subject;
+}
+
+Common::IPv4Port IPRedirection::Reverse(Common::IPv4Port subject) const
 {
-  IPOverrides result;
+  // Low effort implementation..
+  return IPRedirection{.original = replacement, .replacement = original}.Apply(subject);
+}
 
-  const auto ip_overrides_str = Config::Get(Config::MAIN_TRIFORCE_IP_OVERRIDES);
-  for (auto&& ip_pair : ip_overrides_str | std::views::split(','))
+std::string IPRedirection::ToString() const
+{
+  return fmt::format("{}={}", original.ToString(), replacement.ToString());
+}
+
+IPRedirections GetIPRedirections()
+{
+  IPRedirections result;
+
+  const auto ip_redirections_str = Config::Get(Config::MAIN_TRIFORCE_IP_REDIRECTIONS);
+  for (auto&& ip_pair : ip_redirections_str | std::views::split(','))
   {
     const auto ip_pair_str = std::string_view{ip_pair};
-    const auto parts = ParseIPOverride(ip_pair_str);
+    const auto parts = ParseIPRedirection(ip_pair_str);
     if (parts.has_value())
     {
-      const auto match = Common::StringToIPv4PortRange(parts->first);
-      const auto replacement = Common::StringToIPv4PortRange(parts->second);
+      const auto original = Common::StringToIPv4PortRange(parts->original);
+      const auto replacement = Common::StringToIPv4PortRange(parts->replacement);
 
-      if (match.has_value() && replacement.has_value())
+      if (original.has_value() && replacement.has_value())
       {
-        result.emplace_back(*match, *replacement);
+        result.emplace_back(*original, *replacement);
         continue;
       }
 
-      ERROR_LOG_FMT(AMMEDIABOARD, "Bad IP pair string: {}", ip_pair_str);
+      ERROR_LOG_FMT(AMMEDIABOARD, "Bad IP redirection string: {}", ip_pair_str);
     }
   }
 
   return result;
 }
 
-static std::optional<Common::IPv4Port> GetAdjustedIPv4PortFromConfig(Common::IPv4Port subject)
+static std::optional<Common::IPv4Port> AdjustIPv4PortFromConfig(Common::IPv4Port subject)
 {
   // TODO: We should parse this elsewhere to avoid repeated string manipulations.
-  for (auto&& override : GetIPOverrides())
+  for (auto&& redirection : GetIPRedirections())
   {
-    if (override.match.IsMatch(subject))
-      return override.ApplyOverride(subject);
+    if (redirection.original.IsMatch(subject))
+      return redirection.Apply(subject);
   }
 
   return std::nullopt;
+}
+
+static std::optional<Common::IPv4Port> ReverseAdjustIPv4PortFromConfig(Common::IPv4Port subject)
+{
+  // TODO: We should parse this elsewhere to avoid repeated string manipulations.
+  for (auto&& redirection : GetIPRedirections())
+  {
+    if (redirection.replacement.IsMatch(subject))
+      return redirection.Reverse(subject);
+  }
+
+  return std::nullopt;
+}
+
+// Ports are in host byte order.
+static bool BindEphemeralPort(SOCKET host_socket, Common::IPAddress ip_address,
+                              u16 first_port_value, u16 last_port_value, u32 attempt_count)
+{
+  std::mt19937 rng(u32(Clock::now().time_since_epoch().count()));
+  std::uniform_int_distribution<u16> port_distribution{first_port_value, last_port_value};
+
+  sockaddr_in addr = {
+      .sin_family = AF_INET,
+      .sin_addr = std::bit_cast<in_addr>(ip_address),
+  };
+
+  while (attempt_count-- != 0)
+  {
+    const u16 port_value = port_distribution(rng);
+
+    addr.sin_port = htons(port_value);
+
+    const auto bind_result = bind(host_socket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    const int bind_err = WSAGetLastError();
+
+    INFO_LOG_FMT(AMMEDIABOARD, "BindEphemeralPort: bind ({}:{}) = {} ({})",
+                 Common::IPAddressToString(ip_address), port_value, bind_result,
+                 Common::DecodeNetworkError(bind_err));
+
+    if (bind_result == 0)
+      return true;
+  }
+
+  return false;
 }
 
 static s32 NetDIMMConnect(GuestSocket guest_socket, const GuestSocketAddress& guest_addr)
@@ -644,13 +658,14 @@ static s32 NetDIMMConnect(GuestSocket guest_socket, const GuestSocketAddress& gu
       .sin_family = guest_addr.ip_family,
   };
 
-  const auto adjusted_ipv4port =
-      GetAdjustedIPv4PortFromConfig({guest_addr.ip_address, guest_addr.port});
+  // Adjust destination IP and port.
+  const auto adjusted_ipv4port = AdjustIPv4PortFromConfig({guest_addr.ip_address, guest_addr.port});
   if (adjusted_ipv4port.has_value())
   {
     addr.sin_addr = std::bit_cast<in_addr>(adjusted_ipv4port->ip_address);
     addr.sin_port = adjusted_ipv4port->port;
-    INFO_LOG_FMT(AMMEDIABOARD, "NetDIMMConnect: Overriding to: {}:{}",
+
+    INFO_LOG_FMT(AMMEDIABOARD, "NetDIMMConnect: Redirecting to: {}:{}",
                  Common::IPAddressToString(adjusted_ipv4port->ip_address),
                  ntohs(adjusted_ipv4port->port));
   }
@@ -661,6 +676,34 @@ static s32 NetDIMMConnect(GuestSocket guest_socket, const GuestSocketAddress& gu
   }
 
   const auto host_socket = GetHostSocket(guest_socket);
+
+  // See if we have a redirection for the game modified IP.
+  // If so, adjust the source IP by binding the socket.
+  const auto adjusted_source_ipv4port = AdjustIPv4PortFromConfig({s_game_modified_ip_address, 0});
+  if (adjusted_source_ipv4port.has_value())
+  {
+    // FYI: We don't handle the situation if games bind outgoing TCP themselves.
+    // But I think that's unlikely.
+
+    const u16 first_port_value = adjusted_source_ipv4port->GetPortValue();
+
+    // If port zero is included then we don't care about the port number.
+    const bool use_any_port = first_port_value == 0;
+    const u32 attempt_count = use_any_port ? 1 : 10;
+
+    // TODO: Handle the range properly. AdjustIPv4PortFromConfig should return a port range.
+    // This magic 999 is here just to match our default config..
+    const u16 last_port_value = use_any_port ? 0 : first_port_value + 999;
+
+    const auto bind_result = BindEphemeralPort(host_socket, adjusted_source_ipv4port->ip_address,
+                                               first_port_value, last_port_value, attempt_count);
+
+    if (!bind_result)
+    {
+      s_last_error = SOCKET_ERROR;
+      return SOCKET_ERROR;
+    }
+  }
 
   // Set socket to non-blocking
   {
@@ -741,6 +784,156 @@ static s32 NetDIMMConnect(GuestSocket guest_socket, const GuestSocketAddress& gu
   return SOCKET_ERROR;
 }
 
+static GuestSocket NetDIMMAccept(GuestSocket guest_socket, u8* guest_addr_ptr,
+                                 u8* guest_addrlen_ptr)
+{
+  // Either both parameters should be provided, or neither.
+  if ((guest_addr_ptr != nullptr) != (guest_addrlen_ptr != nullptr))
+  {
+    ERROR_LOG_FMT(AMMEDIABOARD_NET, "NetDIMMAccept: bad parmeters");
+
+    // TODO: Not hardware tested.
+    s_last_error = SSC_EFAULT;
+    return INVALID_GUEST_SOCKET;
+  }
+
+  const auto host_socket = GetHostSocket(guest_socket);
+  WSAPOLLFD pfds[1]{{.fd = host_socket, .events = POLLIN}};
+
+  // FYI: Currently using a 0ms timeout to make accept calls always non-blocking.
+  constexpr auto timeout = std::chrono::milliseconds{0};
+
+  DEBUG_LOG_FMT(AMMEDIABOARD, "NetDIMMAccept: {}({})", host_socket, int(guest_socket));
+
+  const int poll_result = PlatformPoll(pfds, timeout);
+
+  if (poll_result < 0) [[unlikely]]
+  {
+    // Poll failure.
+    ERROR_LOG_FMT(AMMEDIABOARD, "NetDIMMAccept: PlatformPoll: {}", Common::StrNetworkError());
+
+    s_last_error = SOCKET_ERROR;
+    return INVALID_GUEST_SOCKET;
+  }
+
+  if ((pfds[0].revents & POLLIN) == 0)
+  {
+    // Timeout.
+    DEBUG_LOG_FMT(AMMEDIABOARD, "NetDIMMAccept: Timeout.");
+
+    s_last_error = SSC_EWOULDBLOCK;
+    return INVALID_GUEST_SOCKET;
+  }
+
+  sockaddr_in addr;
+  socklen_t addrlen = sizeof(addr);
+  const auto client_sock = accept_(host_socket, reinterpret_cast<sockaddr*>(&addr), &addrlen);
+
+  if (client_sock == INVALID_GUEST_SOCKET)
+  {
+    ERROR_LOG_FMT(AMMEDIABOARD, "AMMBCommandAccept: accept: ({})", Common::StrNetworkError());
+    s_last_error = SOCKET_ERROR;
+    return INVALID_GUEST_SOCKET;
+  }
+
+  s_last_error = SSC_SUCCESS;
+
+  NOTICE_LOG_FMT(AMMEDIABOARD, "AMMBCommandAccept: {}:{}",
+                 Common::IPAddressToString(std::bit_cast<Common::IPAddress>(addr.sin_addr)),
+                 ntohs(addr.sin_port));
+
+  if (guest_addr_ptr == nullptr)
+    return client_sock;
+
+  GuestSocketAddress guest_addr{
+      .ip_family = u8(addr.sin_family),
+      .port = addr.sin_port,
+      .ip_address = std::bit_cast<Common::IPAddress>(addr.sin_addr),
+  };
+
+  if (const auto adjusted_ipv4port =
+          ReverseAdjustIPv4PortFromConfig({guest_addr.ip_address, guest_addr.port}))
+  {
+    guest_addr.ip_address = adjusted_ipv4port->ip_address;
+    guest_addr.port = adjusted_ipv4port->port;
+
+    NOTICE_LOG_FMT(AMMEDIABOARD, "AMMBCommandAccept: Translating result to: {}:{}",
+                   Common::IPAddressToString(guest_addr.ip_address), ntohs(guest_addr.port));
+  }
+
+  const auto write_size =
+      std::min<u32>(Common::BitCastPtr<u32>(guest_addrlen_ptr), sizeof(guest_addr));
+
+  // Write out the addr.
+  std::memcpy(guest_addr_ptr, &guest_addr, write_size);
+
+  // Write out the addrlen.
+  *guest_addrlen_ptr = sizeof(guest_addr);
+
+  return client_sock;
+}
+
+static Common::IPv4Port GetAdjustedBindIPv4Port(Common::IPv4Port socket_addr)
+{
+  auto considered_ipv4 = socket_addr;
+
+  if (std::bit_cast<u32>(considered_ipv4.ip_address) == INADDR_ANY)
+  {
+    // Because the game is binding to "0.0.0.0",
+    //  use the "game modified" IP for redirection purposes.
+    // If no redirection applies, then we still bind "0.0.0.0".
+    considered_ipv4.ip_address = s_game_modified_ip_address;
+    INFO_LOG_FMT(AMMEDIABOARD, "GetAdjustedBindIPv4Port: Considering game modified IP: {}",
+                 Common::IPAddressToString(s_game_modified_ip_address));
+  }
+
+  if (const auto adjusted_ipv4 = AdjustIPv4PortFromConfig(considered_ipv4))
+  {
+    socket_addr = *adjusted_ipv4;
+    INFO_LOG_FMT(AMMEDIABOARD, "GetAdjustedBindIPv4Port: Redirecting to: {}:{}",
+                 Common::IPAddressToString(socket_addr.ip_address), ntohs(socket_addr.port));
+  }
+
+  return socket_addr;
+}
+
+static u32 NetDIMMBind(GuestSocket guest_socket, const GuestSocketAddress& guest_addr)
+{
+  const auto host_socket = GetHostSocket(guest_socket);
+
+  NOTICE_LOG_FMT(AMMEDIABOARD, "NetDIMMBind: {}({}) {}, {}, {}:{}", host_socket, int(guest_socket),
+                 guest_addr.unknown_value, guest_addr.ip_family,
+                 Common::IPAddressToString(guest_addr.ip_address), ntohs(guest_addr.port));
+
+  const auto adjusted_ipv4port = GetAdjustedBindIPv4Port({guest_addr.ip_address, guest_addr.port});
+
+  sockaddr_in addr{
+      .sin_family = guest_addr.ip_family,
+      .sin_port = adjusted_ipv4port.port,
+      .sin_addr = std::bit_cast<in_addr>(adjusted_ipv4port.ip_address),
+  };
+
+  const int bind_result = bind(host_socket, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+  const int err = WSAGetLastError();
+
+  INFO_LOG_FMT(AMMEDIABOARD_NET, "NetDIMMBind: bind( {}({}), ({},{}:{}) ):{}", host_socket,
+               u32(guest_socket), addr.sin_family,
+               Common::IPAddressToString(adjusted_ipv4port.ip_address),
+               Common::swap16(adjusted_ipv4port.port), bind_result);
+
+  if (bind_result < 0)
+  {
+    const auto* const err_msg = Common::DecodeNetworkError(err);
+    ERROR_LOG_FMT(AMMEDIABOARD, "NetDIMMBind bind() = {} ({})", err, err_msg);
+
+    PanicAlertFmt("Failed to bind socket {}:{}\nError: {} ({})",
+                  Common::IPAddressToString(adjusted_ipv4port.ip_address),
+                  ntohs(adjusted_ipv4port.port), err, err_msg);
+  }
+
+  return bind_result;
+}
+
 static void AMMBCommandRecv(u32 parameter_offset, u32 network_buffer_base)
 {
   const auto fd = GetHostSocket(GuestSocket(s_media_buffer_32[parameter_offset]));
@@ -760,7 +953,7 @@ static void AMMBCommandRecv(u32 parameter_offset, u32 network_buffer_base)
     len = 0;
   }
 
-  int ret = recv(fd, reinterpret_cast<char*>(s_network_buffer + off), len, 0);
+  const int ret = recv(fd, reinterpret_cast<char*>(s_network_buffer.data() + off), len, 0);
   const int err = WSAGetLastError();
 
   DEBUG_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: recv( {}, 0x{:08x}, {} ):{} {}", fd, off, len, ret, err);
@@ -789,7 +982,7 @@ static void AMMBCommandSend(u32 parameter_offset, u32 network_buffer_base)
     len = 0;
   }
 
-  const int ret = send(fd, reinterpret_cast<char*>(s_network_buffer + off), len, SEND_FLAGS);
+  const int ret = send(fd, reinterpret_cast<char*>(s_network_buffer.data() + off), len, SEND_FLAGS);
   const int err = WSAGetLastError();
 
   DEBUG_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: send( {}({}), 0x{:08x}, {} ): {} {}", fd,
@@ -807,7 +1000,7 @@ static void AMMBCommandSocket(u32 parameter_offset)
 
   const GuestSocket guest_socket = socket_(int(domain), int(type), 0);
 
-  INFO_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: socket( {}, {} ):{}", domain, type, u32(guest_socket));
+  NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: socket( {}, {} ):{}", domain, type, u32(guest_socket));
 
   s_media_buffer[1] = 0;
   s_media_buffer_32[1] = u32(guest_socket);
@@ -820,7 +1013,7 @@ static void AMMBCommandClosesocket(u32 parameter_offset)
 
   const int ret = closesocket(fd);
 
-  INFO_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: closesocket( {}({}) ):{}", fd, u32(guest_socket), ret);
+  NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: closesocket( {}({}) ):{}", fd, u32(guest_socket), ret);
 
   if (u32(guest_socket) < std::size(s_sockets))
     s_sockets[u32(guest_socket)] = SOCKET_ERROR;
@@ -862,43 +1055,44 @@ static void AMMBCommandAccept(u32 parameter_offset, u32 network_buffer_base)
   const u32 addr_off = s_media_buffer_32[parameter_offset + 1];
   const u32 addrlen_off = s_media_buffer_32[parameter_offset + 2];
 
-  u32 ret{};
+  auto* const addrlen_ptr =
+      GetSafePtr(s_network_command_buffer, network_buffer_base, addrlen_off, sizeof(u32));
 
-  // Either both parameters should be provided, or neither.
-  if ((addr_off != 0) != (addrlen_off != 0))
+  auto* const addr_ptr = (addrlen_ptr == nullptr) ?
+                             nullptr :
+                             GetSafePtr(s_network_command_buffer, network_buffer_base, addr_off,
+                                        Common::BitCastPtr<u32>(addrlen_ptr));
+
+  const auto accept_result = NetDIMMAccept(guest_socket, addr_ptr, addrlen_ptr);
+
+  s_media_buffer_32[1] = u32(accept_result);
+}
+
+static void AMMBCommandBind()
+{
+  const auto guest_socket = GuestSocket(s_media_buffer_32[2]);
+  const u32 addr_offset = s_media_buffer_32[3];
+  const u32 len = s_media_buffer_32[4];
+
+  GuestSocketAddress guest_addr;
+
+  if (len != sizeof(guest_addr))
   {
-    WARN_LOG_FMT(AMMEDIABOARD_NET, "AMMBCommandAccept: Unexpected parameters: {}, {}, {}",
-                 u32(guest_socket), addr_off, addrlen_off);
-
-    // TODO: Not hardware tested.
-    s_last_error = SSC_EFAULT;
-    ret = SOCKET_ERROR;
-  }
-  else
-  {
-    sockaddr addr;
-    socklen_t addrlen = sizeof(addr);
-    ret = u32(NetDIMMAccept(guest_socket, &addr, &addrlen));
-
-    INFO_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: accept( {} ):{}", u32(guest_socket), int(ret));
-
-    auto* const addrlen_ptr =
-        GetSafePtr(s_network_command_buffer, network_buffer_base, addrlen_off, sizeof(u32));
-    if (addrlen_ptr != nullptr)
-    {
-      // Read the buffer size.
-      addrlen = std::min<socklen_t>(addrlen, Common::BitCastPtr<u32>(addrlen_ptr));
-      // Write out the proper length.
-      Common::BitCastPtr<u32>(addrlen_ptr) = sizeof(addr);
-
-      auto* const addr_ptr =
-          GetSafePtr(s_network_command_buffer, network_buffer_base, addr_off, addrlen);
-      if (addr_ptr != nullptr)
-        memcpy(addr_ptr, &addr, addrlen);
-    }
+    ERROR_LOG_FMT(AMMEDIABOARD_NET, "AMMBCommandBind: Unexpected length: {}", len);
+    return;
   }
 
-  s_media_buffer_32[1] = ret;
+  const auto* addr_ptr =
+      GetSafePtr(s_network_command_buffer, NetworkCommandAddress2, addr_offset, sizeof(guest_addr));
+  if (addr_ptr == nullptr)
+    return;
+
+  memcpy(&guest_addr, addr_ptr, sizeof(guest_addr));
+
+  const auto bind_result = NetDIMMBind(guest_socket, guest_addr);
+
+  s_media_buffer_32[1] = bind_result;
+  s_last_error = SSC_SUCCESS;
 }
 
 // Expects a pointer to a GuestFdSet or nullptr.
@@ -985,14 +1179,14 @@ static void AMMBCommandSelect(u32 parameter_offset, u32 network_buffer_base)
 
   if (timeout < std::chrono::milliseconds{})
   {
-    // TODO: We should have a way to break out any timeout on shutdown.
-    // We should include a "wakeup" socket in each `poll` call.
+    // TODO: We should have a way to break out of any timeout on shutdown.
+    // e.g. include a "wakeup" socket in each `poll` call.
     WARN_LOG_FMT(AMMEDIABOARD, "AMMBCommandSelect: Infinite timout!");
   }
 
-  INFO_LOG_FMT(AMMEDIABOARD_NET,
-               "GC-AM: select( {}, 0x{:08x} 0x{:08x} 0x{:08x} 0x{:08x} ) timeout={}", nfds,
-               readfds_offset, writefds_offset, exceptfds_offset, timeout_offset, timeout.count());
+  DEBUG_LOG_FMT(AMMEDIABOARD_NET,
+                "GC-AM: select( {}, 0x{:08x} 0x{:08x} 0x{:08x} 0x{:08x} ) timeout={}", nfds,
+                readfds_offset, writefds_offset, exceptfds_offset, timeout_offset, timeout.count());
 
   // Fill with the host sockets for each guest socket less-than `nfds` in each GuestFdSet.
   std::vector<WSAPOLLFD> pollfds(nfds, WSAPOLLFD{.fd = INVALID_SOCKET});
@@ -1007,7 +1201,7 @@ static void AMMBCommandSelect(u32 parameter_offset, u32 network_buffer_base)
   // TODO: There may be some edge cases where
   // poll's (POLLIN,POLLOUT,POLLPRI) don't map 1:1 with select's (readfds,writefds,exceptfds).
 
-  INFO_LOG_FMT(AMMEDIABOARD, "AMMBCommandSelect: Polling with socket count: {}", pollfds.size());
+  DEBUG_LOG_FMT(AMMEDIABOARD, "AMMBCommandSelect: Polling with socket count: {}", pollfds.size());
 
   const int ret = PlatformPoll(pollfds, timeout);
 
@@ -1018,7 +1212,7 @@ static void AMMBCommandSelect(u32 parameter_offset, u32 network_buffer_base)
     WriteGuestFdSetFromPollFds(guest_exceptfds_ptr, pollfds, POLLPRI);
   }
 
-  INFO_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: select result: {}", ret);
+  DEBUG_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: select result: {}", ret);
 
   s_media_buffer[1] = 0;
   s_media_buffer_32[1] = ret;
@@ -1037,7 +1231,7 @@ static void AMMBCommandSetSockOpt(u32 parameter_offset, u32 network_buffer_base)
     return;
   }
 
-  const char* optval = reinterpret_cast<char*>(s_network_command_buffer + optval_offset);
+  const char* optval = reinterpret_cast<char*>(s_network_command_buffer.data() + optval_offset);
 
   // TODO: Ensure parameters are compatible with host's setsockopt
   const int ret = setsockopt(fd, level, optname, optval, optlen);
@@ -1057,10 +1251,13 @@ static void AMMBCommandModifyMyIPaddr(u32 parameter_offset, u32 network_buffer_b
                                             ip_address_offset, MAX_IPV4_STRING_LENGTH);
 
   NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: modifyMyIPaddr({})", ip_address_str);
+
+  if (const auto parse_result = Common::StringToIPv4PortRange(ip_address_str))
+    s_game_modified_ip_address = parse_result->first.ip_address;
 }
 
 static void FileWriteData(Memory::MemoryManager& memory, File::IOFile* file, u32 seek_pos,
-                          u32 address, size_t length)
+                          u32 address, std::size_t length)
 {
   auto span = memory.GetSpanForAddress(address);
   if (length <= span.size())
@@ -1077,7 +1274,7 @@ static void FileWriteData(Memory::MemoryManager& memory, File::IOFile* file, u32
 }
 
 static void FileReadData(Memory::MemoryManager& memory, File::IOFile* file, u32 seek_pos,
-                         u32 address, size_t length)
+                         u32 address, std::size_t length)
 {
   auto span = memory.GetSpanForAddress(address);
   if (length <= span.size())
@@ -1204,7 +1401,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         break;
       default:
         PrintMBBuffer(address, length);
-        PanicAlertFmtT("Unhandled Media Board Read:{0:08x}", offset);
+        PanicAlertFmtT("Unhandled Media Board Read: offset={0:08x} length={0:08x}", offset, length);
         break;
       }
       return 0;
@@ -1258,8 +1455,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
       if (offset >= range.start && offset < range.end)
       {
         DEBUG_LOG_FMT(AMMEDIABOARD, "GC-AM: Read MediaBoard ({:08x},{:08x},{:08x})", offset,
-                      range.base_offset, length);
-        SafeCopyToEmu(memory, address, range.buffer, range.buffer_size, offset - range.base_offset,
+                      range.start, length);
+        SafeCopyToEmu(memory, address, range.buffer, range.buffer_size, offset - range.start,
                       length);
         PrintMBBuffer(address, length);
         return 0;
@@ -1301,80 +1498,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         AMMBCommandAccept(2, NetworkCommandAddress2);
         break;
       case AMMBCommand::Bind:
-      {
-        const auto guest_socket = GuestSocket(s_media_buffer_32[2]);
-        const auto host_socket = GetHostSocket(guest_socket);
-        const u32 addr_offset = s_media_buffer_32[3];
-        const u32 len = s_media_buffer_32[4];
-
-        GuestSocketAddress guest_addr;
-
-        if (len != sizeof(guest_addr))
-        {
-          ERROR_LOG_FMT(AMMEDIABOARD_NET, "AMMBCommand::Bind: Unexpected length: {}", len);
-          break;
-        }
-
-        const auto* addr_ptr = GetSafePtr(s_network_command_buffer, NetworkCommandAddress2,
-                                          addr_offset, sizeof(guest_addr));
-        if (addr_ptr == nullptr)
-          break;
-
-        memcpy(&guest_addr, addr_ptr, sizeof(guest_addr));
-
-        // Triforce titles typically rely on hardcoded IP addresses.
-        // Our config allows this to be overriden.
-
-        INFO_LOG_FMT(AMMEDIABOARD, "AMMBCommand::Bind: {}, {}, {}:{}", guest_addr.struct_size,
-                     guest_addr.ip_family, Common::IPAddressToString(guest_addr.ip_address),
-                     ntohs(guest_addr.port));
-
-        // Apply "BindIP" if it's valid.
-        const auto override_bind_ip = inet_addr(Config::Get(Config::MAIN_TRIFORCE_BIND_IP).c_str());
-        if (override_bind_ip != INADDR_NONE)
-        {
-          guest_addr.ip_address = std::bit_cast<Common::IPAddress>(override_bind_ip);
-          INFO_LOG_FMT(AMMEDIABOARD, "AMMBCommand::Bind: Overriding IP to: {}",
-                       Common::IPAddressToString(guest_addr.ip_address));
-        }
-
-        // Apply "IPOverrides" in case config wants ports adjusted.
-        const auto adjusted_ipv4port =
-            GetAdjustedIPv4PortFromConfig({guest_addr.ip_address, guest_addr.port});
-        if (adjusted_ipv4port.has_value())
-        {
-          guest_addr.ip_address = adjusted_ipv4port->ip_address;
-          guest_addr.port = adjusted_ipv4port->port;
-          INFO_LOG_FMT(AMMEDIABOARD, "AMMBCommand::Bind: Overriding to: {}:{}",
-                       Common::IPAddressToString(guest_addr.ip_address), ntohs(guest_addr.port));
-        }
-
-        sockaddr_in addr{
-            .sin_family = guest_addr.ip_family,
-            .sin_port = guest_addr.port,
-            .sin_addr = std::bit_cast<in_addr>(guest_addr.ip_address),
-        };
-
-        const int bind_result =
-            bind(host_socket, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
-        const int err = WSAGetLastError();
-
-        INFO_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: bind( {}({}), ({},{}:{}) ):{} ({})", host_socket,
-                     u32(guest_socket), addr.sin_family, inet_ntoa(addr.sin_addr),
-                     Common::swap16(addr.sin_port), bind_result, err);
-
-        if (bind_result < 0)
-        {
-          const auto err_msg = Common::DecodeNetworkError(err);
-          PanicAlertFmt("Failed to bind socket (error {}: {})", err, err_msg);
-          ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: AMMBCommand::Bind failed, bind() = {} ({})", err,
-                        err_msg);
-        }
-
-        s_media_buffer_32[1] = bind_result;
-        s_last_error = SSC_SUCCESS;
+        AMMBCommandBind();
         break;
-      }
       case AMMBCommand::Closesocket:
         AMMBCommandClosesocket(2);
         break;
@@ -1383,7 +1508,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         break;
       case AMMBCommand::InetAddr:
       {
-        const char* ip_address = reinterpret_cast<char*>(s_network_command_buffer);
+        const char* ip_address = reinterpret_cast<char*>(s_network_command_buffer.data());
 
         // IP address shouldn't be longer than 15
         // TODO: Shouldn't this look at 16 characters for lack of null-termination?
@@ -1460,12 +1585,13 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           }
 
           INFO_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: SetTimeOuts( {}({}), {}, {}, {} ):{}", host_socket,
-                       u32(guest_socket), timeout_a, timeout_b, timeout_c, ret);
+                       int(guest_socket), timeout_a, timeout_b, timeout_c, ret);
         }
         else
         {
-          ERROR_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: Invalid Socket: SetTimeOuts( {}, {}, {} ):{}",
-                        timeout_a, timeout_b, timeout_c, ret);
+          ERROR_LOG_FMT(AMMEDIABOARD_NET,
+                        "GC-AM: Invalid Socket: SetTimeOuts( {}({}), {}, {}, {} ):{}", host_socket,
+                        int(guest_socket), timeout_a, timeout_b, timeout_c, ret);
         }
 
         s_media_buffer[1] = s_media_buffer[8];
@@ -1487,10 +1613,11 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         break;
       case AMMBCommand::GetLastError:
       {
-        const auto fd = GetHostSocket(GuestSocket(s_media_buffer_32[2]));
+        const auto guest_socket = GuestSocket(s_media_buffer_32[2]);
+        const auto host_socket = GetHostSocket(guest_socket);
 
-        INFO_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: GetLastError( {}({}) ):{}", fd, s_media_buffer_32[2],
-                     s_last_error);
+        DEBUG_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: GetLastError( {}({}) ):{}", host_socket,
+                      int(guest_socket), int(s_last_error));
 
         // Good enough, assuming it's called for the same socket right after an error.
         // TODO: Implement something similar per socket.
@@ -1521,13 +1648,13 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
     // Max GC disc offset
     if (offset >= 0x57058000)
     {
-      PanicAlertFmtT("Unhandled Media Board Read:{0:08x}", offset);
+      PanicAlertFmtT("Unhandled Media Board Read: offset={0:08x} length={0:08x}", offset, length);
       return 0;
     }
 
     if (s_firmware_map)
     {
-      if (!SafeCopyToEmu(memory, address, s_firmware, sizeof(s_firmware), offset, length))
+      if (!SafeCopyToEmu(memory, address, s_firmware.data(), s_firmware.size(), offset, length))
       {
         ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: Invalid firmware buffer range: offset={}, length={}",
                       offset, length);
@@ -1568,7 +1695,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
       if (offset >= 0x00400000 && offset <= 0x600000)
       {
         const u32 fw_offset = offset - 0x00400000;
-        if (!SafeCopyFromEmu(memory, s_firmware, address, sizeof(s_firmware), fw_offset, length))
+        if (!SafeCopyFromEmu(memory, s_firmware.data(), address, s_firmware.size(), fw_offset,
+                             length))
         {
           ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: Invalid firmware write: offset={}, length={}",
                         fw_offset, length);
@@ -1694,9 +1822,9 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
       if (offset >= range.start && offset < range.end)
       {
         DEBUG_LOG_FMT(AMMEDIABOARD, "GC-AM: Write MediaBoard ({:08x},{:08x},{:08x})", offset,
-                      range.base_offset, length);
-        SafeCopyFromEmu(memory, range.buffer, address, range.buffer_size,
-                        offset - range.base_offset, length);
+                      range.start, length);
+        SafeCopyFromEmu(memory, range.buffer, address, range.buffer_size, offset - range.start,
+                        length);
         PrintMBBuffer(address, length);
         return 0;
       }
@@ -1706,7 +1834,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
     if (offset >= 0x57058000)
     {
       PrintMBBuffer(address, length);
-      PanicAlertFmtT("Unhandled Media Board Write:{0:08x}", offset);
+      PanicAlertFmtT("Unhandled Media Board Write: offset={0:08x} length={0:08x}", offset, length);
     }
     break;
   case AMMBDICommand::Execute:
@@ -1732,19 +1860,15 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         break;
       case AMMBCommand::GetMediaBoardStatus:
       {
-        // Fake loading the game to have a chance to enter test mode
-        static u32 status = LoadingGameProgram;
-        static u32 progress = 80;
-
-        s_media_buffer_32[1] = status;
-        s_media_buffer_32[2] = progress;
-        if (progress < 100)
+        s_media_buffer_32[1] = s_board_status;
+        s_media_buffer_32[2] = s_load_progress;
+        if (s_load_progress < 100)
         {
-          progress++;
+          s_load_progress++;
         }
         else
         {
-          status = LoadedGameProgram;
+          s_board_status = LoadedGameProgram;
         }
       }
       break;
@@ -1852,9 +1976,9 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
       // This sends a UDP packet to previously defined Target IP/Port
       case AMMBCommand::SearchDevices:
       {
-        u16 unknown = s_media_buffer[0x25] | s_media_buffer[0x24] << 8;
-        u16 off = s_media_buffer[0x26] | s_media_buffer[0x27] << 8;
-        u32 addr = s_media_buffer_32[10];
+        const u16 unknown = s_media_buffer[0x25] | s_media_buffer[0x24] << 8;
+        const u16 off = s_media_buffer[0x26] | s_media_buffer[0x27] << 8;
+        const u32 addr = s_media_buffer_32[10];
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: SearchDevices: ({})", unknown);
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM:        Offset: ({:04x})", off);
@@ -1865,7 +1989,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           break;
         }
 
-        const u8* data = s_network_buffer + (off + addr - NetworkBufferAddress2);
+        const u8* const data = s_network_buffer.data() + (off + addr - NetworkBufferAddress2);
 
         for (u32 i = 0; i < 0x20; i += 0x10)
         {
@@ -1880,8 +2004,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
       case AMMBCommand::Unknown_608:
       {
         const u32 ip = s_media_buffer_32[10];
-        u16 port = Common::swap16(s_media_buffer[6] | s_media_buffer[7] << 8);
-        u16 flag = s_media_buffer[10] | s_media_buffer[11] << 8;
+        const u16 port = Common::swap16(s_media_buffer[6] | s_media_buffer[7] << 8);
+        const u16 flag = s_media_buffer[10] | s_media_buffer[11] << 8;
 
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: 0x608( {} {} {} )", ip, port, flag);
       }
@@ -2001,6 +2125,11 @@ void DoState(PointerWrap& p)
   p.Do(s_allnet_buffer);
   p.Do(s_allnet_settings);
 
+  p.Do(s_game_modified_ip_address);
+
+  p.Do(s_board_status);
+  p.Do(s_load_progress);
+
   // TODO: Handle the files better.
   // Data corruption is probably currently possible.
 
@@ -2040,4 +2169,12 @@ void DoState(PointerWrap& p)
   }
 }
 
+s32 DebuggerGetSocket(u32 triforce_fd)
+{
+  if (triforce_fd < std::size(s_sockets))
+    return s32(s_sockets[triforce_fd]);
+
+  WARN_LOG_FMT(AMMEDIABOARD, "GC-AM: Bad socket fd used by the debugger: {}", triforce_fd);
+  return -1;
+}
 }  // namespace AMMediaboard

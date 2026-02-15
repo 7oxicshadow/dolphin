@@ -50,8 +50,6 @@ std::string VolumeDisc::GetGameID(const Partition& partition) const
     const std::string maker_id{GetMakerID()};
     memcpy(id + 4, maker_id.c_str(), std::min<std::size_t>(maker_id.size(), 2));
 
-    memcpy(id + 4, GetMakerID().c_str(), 2);
-
     return DecodeString(id);
   }
 

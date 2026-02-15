@@ -142,8 +142,7 @@
     <string name="modem_tapserver_destination_description">Enter the socket path or netloc (address:port) of the tapserver instance</string>
     <string name="bba_builtin_dns">DNS Server</string>
     <string name="bba_builtin_dns_description">Use 8.8.8.8 for normal DNS, else enter your custom one</string>
-    <string name="triforce_bind_ip">Bind IP</string>
-    <string name="triforce_ip_overrides">IP Overrides</string>
+    <string name="triforce_ip_redirections">IP Redirections</string>
 
     <!-- Interface Preference Fragment -->
     <string name="interface_submenu">Interface</string>
